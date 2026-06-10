@@ -96,6 +96,9 @@ const availabilityOverview = document.querySelector("#availabilityOverview");
 const availabilityStatus = document.querySelector("#availabilityStatus");
 const refreshButton = document.querySelector("#refreshButton");
 const autoRefreshMs = 60 * 1000;
+const refreshPollMs = 15 * 1000;
+let availabilityPollTimer = null;
+let availabilityRequestId = 0;
 
 function getWeekDays() {
   return Array.from({ length: 7 }, (_, index) => {
@@ -483,19 +486,32 @@ function renderAvailability() {
     .join("");
 }
 
-async function loadAvailability({ refresh = false, followUp = false } = {}) {
+function scheduleAvailabilityFollowUp(requestId) {
+  window.clearTimeout(availabilityPollTimer);
+  availabilityPollTimer = window.setTimeout(() => {
+    loadAvailability({ followUp: true, requestId });
+  }, refreshPollMs);
+}
+
+async function loadAvailability({ refresh = false, followUp = false, requestId = null } = {}) {
+  const currentRequestId = requestId ?? ++availabilityRequestId;
+  if (!followUp) {
+    window.clearTimeout(availabilityPollTimer);
+  }
   if (!liveAvailability.updatedAt) {
     availabilityStatus.textContent = refresh ? "正在更新..." : "读取中...";
   }
   refreshButton.disabled = true;
   try {
-    const response = await fetch(`/api/availability?${refresh ? "refresh=1&" : ""}ts=${Date.now()}`);
+    const response = await fetch(`/api/availability?${refresh && !followUp ? "refresh=1&" : ""}ts=${Date.now()}`);
     if (!response.ok) throw new Error("Availability API failed");
     liveAvailability = await response.json();
     availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt);
 
-    if ((refresh || liveAvailability.refreshing) && !followUp) {
-      window.setTimeout(() => loadAvailability({ followUp: true }), 32000);
+    if (liveAvailability.refreshing && currentRequestId === availabilityRequestId) {
+      scheduleAvailabilityFollowUp(currentRequestId);
+    } else if (currentRequestId === availabilityRequestId) {
+      window.clearTimeout(availabilityPollTimer);
     }
   } catch {
     liveAvailability = { updatedAt: null, tbc: {}, ubc: {} };
@@ -513,7 +529,7 @@ refreshButton.addEventListener("click", () => {
 });
 
 renderDate();
-loadAvailability();
+loadAvailability({ refresh: true });
 loadWeather();
 
 window.setInterval(() => {
