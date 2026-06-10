@@ -1,8 +1,8 @@
 const courts = [
   {
     id: "tbc",
-    name: "Tennishub Richmond",
-    shortName: "Tennishub",
+    name: "Tennis Hub Richmond",
+    shortName: "Tennis Hub",
     color: "var(--green)",
     status: "点开查晚场",
     note: "ClubSpark 会按日期显示空位。",
@@ -417,7 +417,7 @@ function renderAvailability() {
           <span>${day.weekday}</span>
           <strong>${day.label}</strong>
           <div class="overview-dots">
-            <span class="overview-dot ${hasLiveTbc ? "on" : ""}" style="--dot: var(--green)" title="Tennishub"></span>
+            <span class="overview-dot ${hasLiveTbc ? "on" : ""}" style="--dot: var(--green)" title="Tennis Hub"></span>
             <span class="overview-dot ${hasUbc ? "on" : ""}" style="--dot: var(--blue)" title="UBC"></span>
           </div>
         </div>
@@ -463,7 +463,7 @@ function renderAvailability() {
             <div class="ubc-slots">
               <div class="slot-heading">
                 <span class="court-dot" style="background:${tbcCourt.color}"></span>
-                <strong>Tennishub</strong>
+                <strong>Tennis Hub</strong>
               </div>
               <div class="slot-grid">${tbcSlotList}</div>
             </div>
