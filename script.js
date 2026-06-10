@@ -142,10 +142,10 @@ function formatUpdatedAt(value, refreshing = false) {
   }
 
   if (ageMinutes < 10) {
-    return refreshing ? `上次成功 ${time} · ${ageMinutes}分钟前 · 后台刷新中` : `上次成功 ${time} · ${ageMinutes}分钟前`;
+    return refreshing ? `上次更新 ${time} · ${ageMinutes}分钟前 · 后台刷新中` : `上次更新 ${time} · ${ageMinutes}分钟前`;
   }
 
-  return refreshing ? `数据偏旧：上次成功 ${time} · ${ageMinutes}分钟前 · 正在重试` : `数据偏旧：上次成功 ${time} · ${ageMinutes}分钟前`;
+  return refreshing ? `数据偏旧：上次更新 ${time} · ${ageMinutes}分钟前 · 正在重试` : `数据偏旧：上次更新 ${time} · ${ageMinutes}分钟前`;
 }
 
 function renderDate() {
