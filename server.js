@@ -5,7 +5,6 @@ const path = require("path");
 const root = __dirname;
 const port = process.env.PORT || 4173;
 const cacheMs = 60 * 1000;
-const persistedCacheMaxAgeMs = 30 * 60 * 1000;
 const cacheFile = path.join(root, "data", "availability.json");
 const backgroundRefreshMs = 10 * 60 * 1000;
 let cachedAvailability = null;
@@ -15,10 +14,9 @@ let playwrightModule = null;
 
 try {
   const persisted = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
-  const persistedAge = persisted?.updatedAt ? Date.now() - new Date(persisted.updatedAt).getTime() : Infinity;
-  if (persisted && persisted.updatedAt && persistedAge < persistedCacheMaxAgeMs) {
+  if (persisted && persisted.updatedAt) {
     cachedAvailability = persisted;
-    cachedAt = Date.now();
+    cachedAt = new Date(persisted.updatedAt).getTime();
   }
 } catch {
   cachedAvailability = null;
