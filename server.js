@@ -190,6 +190,15 @@ function totalSlots(data) {
   return tbcTotal + ubcTotal;
 }
 
+function writeAvailabilityCache() {
+  try {
+    fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+    fs.writeFileSync(cacheFile, JSON.stringify(cachedAvailability, null, 2));
+  } catch (error) {
+    console.error("Could not write availability cache:", error.message);
+  }
+}
+
 function getChromium() {
   if (!playwrightModule) {
     try {
@@ -451,8 +460,10 @@ async function scrapeAvailability() {
     await browser.close().catch(() => {});
   }
 
+  const checkedAt = new Date().toISOString();
   const nextAvailability = {
-    updatedAt: new Date().toISOString(),
+    updatedAt: checkedAt,
+    checkedAt,
     source: "live-public-pages",
     tbc,
     ubc,
@@ -464,20 +475,19 @@ async function scrapeAvailability() {
 
   if (nextTotal === 0 && cachedTotal > 0) {
     console.error("Availability refresh returned zero slots; keeping previous cached data.");
-    return {
+    cachedAvailability = {
       ...cachedAvailability,
+      checkedAt,
       stale: true,
     };
+    cachedAt = Date.now();
+    writeAvailabilityCache();
+    return cachedAvailability;
   }
 
   cachedAvailability = nextAvailability;
   cachedAt = Date.now();
-  try {
-    fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
-    fs.writeFileSync(cacheFile, JSON.stringify(cachedAvailability, null, 2));
-  } catch (error) {
-    console.error("Could not write availability cache:", error.message);
-  }
+  writeAvailabilityCache();
   return cachedAvailability;
 }
 

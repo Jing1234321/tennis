@@ -506,7 +506,7 @@ async function loadAvailability({ refresh = false, followUp = false, requestId =
     const response = await fetch(`/api/availability?${refresh && !followUp ? "refresh=1&" : ""}ts=${Date.now()}`);
     if (!response.ok) throw new Error("Availability API failed");
     liveAvailability = await response.json();
-    availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt);
+    availabilityStatus.textContent = formatUpdatedAt(liveAvailability.checkedAt || liveAvailability.updatedAt);
 
     if (liveAvailability.refreshing && currentRequestId === availabilityRequestId) {
       scheduleAvailabilityFollowUp(currentRequestId);
