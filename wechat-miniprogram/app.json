@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "一周晚场",
+    "navigationBarBackgroundColor": "#17211b",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#eef3ef"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

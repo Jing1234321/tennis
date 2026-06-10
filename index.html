@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>二拍即合</title>
+    <link rel="stylesheet" href="styles.css?v=20260610-5" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-label="网球场概览">
+        <div class="hero-overlay"></div>
+      </section>
+
+      <section class="dashboard" aria-label="球场状态">
+        <header class="topbar">
+          <div>
+            <h1 class="brand-title">二拍即合</h1>
+            <p class="date" id="todayLabel">今天</p>
+          </div>
+          <button class="icon-button" id="refreshButton" type="button" aria-label="刷新数据" title="刷新数据">
+            <span aria-hidden="true">↻</span>
+          </button>
+        </header>
+
+        <div class="content-grid">
+          <section class="weather-panel" aria-label="天气">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Richmond Weather</p>
+                <h3>After 7 PM</h3>
+              </div>
+            </div>
+            <div class="forecast-grid" id="forecastGrid" aria-live="polite"></div>
+          </section>
+
+          <section class="availability-panel" aria-label="晚场空位">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Court Times</p>
+              </div>
+              <p class="panel-note" id="availabilityStatus">刷新中...</p>
+            </div>
+            <div class="availability-overview" id="availabilityOverview" aria-label="七天空位概览"></div>
+            <div class="week-list" id="weekList"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js?v=20260610-5"></script>
+  </body>
+</html>

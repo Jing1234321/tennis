@@ -1,0 +1,79 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">Tennis Today</view>
+    <view class="title">晚场哪天有？</view>
+    <view class="subtitle">Richmond 一周天气，TBC 和 UBC 只看 19:30 后。</view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <view class="kicker">Richmond Weather</view>
+        <view class="section-title">未来 7 天</view>
+      </view>
+      <button class="refresh" bindtap="refresh">刷新</button>
+    </view>
+
+    <scroll-view class="forecast-scroll" scroll-x="true">
+      <view class="forecast-row">
+        <view wx:for="{{forecast}}" wx:key="date" class="forecast-card">
+          <view class="muted">{{item.weekday}}</view>
+          <view class="date">{{item.label}}</view>
+          <view class="icon">{{item.icon}}</view>
+          <view class="summary">{{item.summary}}</view>
+          <view class="temp">{{item.high}}° / {{item.low}}°</view>
+          <view class="metrics">雨 {{item.rain}}%</view>
+          <view class="metrics">风 {{item.wind}} km/h</view>
+          <view class="condition">{{item.condition}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <view class="kicker">After 7:30 PM</view>
+        <view class="section-title">TBC / UBC 空位</view>
+      </view>
+      <view class="note">有场再复制链接</view>
+    </view>
+
+    <view class="week-list">
+      <view wx:for="{{weekDays}}" wx:key="iso" class="day-row">
+        <view class="day-label">
+          <view class="muted">{{item.weekday}}</view>
+          <view class="date">{{item.label}}</view>
+          <view class="muted">19:30 后</view>
+        </view>
+        <view class="court-list">
+          <button
+            class="court-button"
+            data-url="{{item.tbcUrl}}"
+            data-name="TBC"
+            bindtap="copyBookingUrl"
+          >
+            <view class="dot tbc"></view>
+            <view>
+              <view class="court-name">TBC</view>
+              <view class="muted">复制链接查晚场</view>
+            </view>
+          </button>
+
+          <button
+            class="court-button {{item.ubcOpen ? '' : 'disabled'}}"
+            data-url="{{item.ubcUrl}}"
+            data-name="UBC"
+            bindtap="copyBookingUrl"
+          >
+            <view class="dot ubc"></view>
+            <view>
+              <view class="court-name">UBC</view>
+              <view class="muted">{{item.ubcOpen ? '复制链接查晚场' : '未开放'}}</view>
+            </view>
+          </button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,652 @@
+:root {
+  color-scheme: light;
+  --ink: #17201d;
+  --muted: #66756d;
+  --panel: rgba(255, 255, 255, 0.94);
+  --line: rgba(23, 32, 29, 0.12);
+  --green: #18a058;
+  --blue: #2276d2;
+  --clay: #df6a47;
+  --sun: #f7bd38;
+  --mint: #dff7ea;
+  --sky: #e8f4ff;
+  --shadow: 0 18px 50px rgba(33, 74, 51, 0.16);
+  font-family: "Arial Rounded MT Bold", "Nunito", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(247, 189, 56, 0.12), transparent 28%),
+    linear-gradient(215deg, rgba(34, 118, 210, 0.1), transparent 30%),
+    #edf6f0;
+  color: var(--ink);
+}
+
+button,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(260px, 34vw) 1fr;
+}
+
+.hero {
+  position: relative;
+  min-height: 100vh;
+  background: url("assets/tennis-court-bg.png") center / cover no-repeat;
+  display: flex;
+  align-items: center;
+  padding: clamp(28px, 4vw, 56px);
+  overflow: hidden;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(15, 34, 24, 0.02), rgba(9, 22, 17, 0.62)),
+    linear-gradient(35deg, rgba(24, 160, 88, 0.34), rgba(247, 189, 56, 0.18));
+}
+
+.hero-content {
+  position: relative;
+  max-width: 420px;
+  color: white;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.28);
+}
+
+.eyebrow,
+.section-kicker,
+.date {
+  margin: 0 0 8px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.78rem;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.section-kicker,
+.date,
+.forecast-temp,
+.time-slot-card > strong,
+.court-chip,
+.overview-day strong {
+  font-family: "Arial Rounded MT Bold", "Nunito", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.8rem, 7vw, 5.8rem);
+  line-height: 0.94;
+  letter-spacing: 0;
+}
+
+.hero-copy {
+  margin: 18px 0 0;
+  max-width: 28rem;
+  font-size: clamp(1rem, 2vw, 1.18rem);
+  line-height: 1.6;
+}
+
+.dashboard {
+  padding: clamp(20px, 4vw, 48px);
+  align-self: stretch;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.brand-title {
+  position: relative;
+  display: inline-block;
+  margin: 0 0 10px;
+  font-family: "Yuanti SC", "Arial Rounded MT Bold", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: clamp(1.9rem, 5vw, 3.5rem);
+  line-height: 1;
+  font-weight: 900;
+  color: #123f2a;
+  letter-spacing: 0;
+  animation: brand-float 3.4s ease-in-out infinite;
+}
+
+.brand-title::before {
+  content: "";
+  position: absolute;
+  right: -18px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--sun);
+  box-shadow: 0 0 0 5px rgba(247, 189, 56, 0.18);
+  animation: brand-dot 1.8s ease-in-out infinite;
+}
+
+.brand-title::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 4px;
+  bottom: -9px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--sun), var(--green), var(--blue));
+  transform-origin: left center;
+  animation: brand-underline 2.6s ease-in-out infinite;
+}
+
+@keyframes brand-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.4deg);
+  }
+
+  50% {
+    transform: translateY(-3px) rotate(0.4deg);
+  }
+}
+
+@keyframes brand-dot {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(5px) scale(0.84);
+  }
+}
+
+@keyframes brand-underline {
+  0%,
+  100% {
+    transform: scaleX(0.78);
+    opacity: 0.72;
+  }
+
+  50% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.topbar h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.date,
+.section-kicker {
+  color: var(--muted);
+}
+
+.icon-button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(20, 34, 26, 0.08);
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.icon-button:hover {
+  border-color: rgba(31, 122, 77, 0.45);
+  transform: rotate(18deg) scale(1.04);
+}
+
+.content-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.weather-panel,
+.availability-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.weather-panel {
+  padding: 22px;
+}
+
+.availability-panel {
+  padding: 20px;
+}
+
+.panel-heading,
+.court-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.panel-heading h3,
+.court-head h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+select {
+  min-width: 132px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: white;
+  color: var(--ink);
+}
+
+.forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(108px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.forecast-card,
+.day-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 12px;
+}
+
+.forecast-card span,
+.day-label span,
+.court-check small,
+.meta-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-bottom: 5px;
+}
+
+.forecast-card strong {
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.forecast-icon {
+  margin: 14px 0 8px;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(245, 184, 75, 0.18);
+  color: #a65c20;
+  font-size: 1.45rem;
+  transform: rotate(-4deg);
+}
+
+.forecast-card p {
+  min-height: 2.4em;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.forecast-temp {
+  font-size: 1.12rem;
+  font-weight: 820;
+  margin-bottom: 10px;
+}
+
+.mini-metrics {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.mini-metrics b {
+  color: var(--green);
+}
+
+.court-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--green);
+}
+
+.panel-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.week-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.availability-overview {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.overview-day {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 6px;
+  background: linear-gradient(180deg, white, rgba(232, 244, 255, 0.72));
+  text-align: center;
+}
+
+.overview-day span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.overview-day strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.86rem;
+}
+
+.overview-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.overview-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(98, 112, 105, 0.22);
+}
+
+.overview-dot.on {
+  background: var(--dot);
+}
+
+.day-row {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.day-label strong {
+  display: block;
+  font-size: 1.08rem;
+  font-weight: 850;
+}
+
+.day-label small {
+  color: var(--muted);
+}
+
+.court-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.court-check {
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  background: white;
+}
+
+.court-check:hover {
+  border-color: rgba(31, 122, 77, 0.45);
+}
+
+.court-check strong {
+  display: block;
+  font-size: 0.96rem;
+}
+
+.court-check.locked {
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.court-check.locked small {
+  color: var(--clay);
+}
+
+.ubc-slots {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.slot-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.slot-heading strong {
+  font-size: 0.96rem;
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.time-slot-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(232, 244, 255, 0.82), rgba(223, 247, 234, 0.7));
+}
+
+.time-slot-card > strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.court-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.court-chip {
+  border: 1px solid rgba(34, 118, 210, 0.18);
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: white;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.74rem;
+  font-weight: 760;
+  line-height: 1;
+  box-shadow: 0 5px 12px rgba(34, 118, 210, 0.08);
+}
+
+.court-chip:hover {
+  border-color: rgba(38, 103, 169, 0.45);
+  transform: translateY(-1px);
+}
+
+.time-slot-card.empty-slot {
+  background: rgba(255, 255, 255, 0.56);
+  border-style: dashed;
+}
+
+.time-slot-card.empty-slot strong {
+  color: var(--muted);
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    min-height: 44vh;
+    align-items: center;
+  }
+}
+
+@media (max-width: 720px) {
+  .hero {
+    min-height: 30vh;
+    padding: 18px;
+    background-position: center top;
+  }
+
+  .dashboard {
+    padding: 16px;
+  }
+
+  .topbar {
+    margin-bottom: 16px;
+  }
+
+  .brand-title {
+    margin-bottom: 8px;
+    font-size: 1.85rem;
+  }
+
+  .weather-panel,
+  .availability-panel {
+    padding: 16px;
+  }
+
+  .forecast-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    overflow-x: visible;
+    gap: 4px;
+  }
+
+  .forecast-card {
+    display: block;
+    padding: 7px 4px;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .forecast-card span {
+    margin: 0;
+    font-size: 0.62rem;
+  }
+
+  .forecast-card strong {
+    font-size: 0.78rem;
+  }
+
+  .forecast-icon {
+    width: 30px;
+    height: 30px;
+    margin: 8px auto 6px;
+    font-size: 1rem;
+  }
+
+  .forecast-card p {
+    min-height: 0;
+    margin: 0 0 6px;
+    font-size: 0.64rem;
+    line-height: 1.15;
+  }
+
+  .forecast-temp {
+    margin: 0 0 6px;
+    font-size: 0.86rem;
+  }
+
+  .mini-metrics {
+    display: grid;
+    gap: 2px;
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+    font-size: 0.58rem;
+  }
+
+  .mini-metrics span,
+  .mini-metrics b {
+    font-size: 0.56rem;
+    line-height: 1.15;
+  }
+
+  .panel-heading,
+  .day-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .availability-overview {
+    gap: 4px;
+  }
+
+  .overview-day {
+    padding: 7px 3px;
+  }
+
+  .overview-day span {
+    font-size: 0.58rem;
+  }
+
+  .overview-day strong {
+    font-size: 0.72rem;
+  }
+
+  .overview-dots {
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .overview-dot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .day-row {
+    display: flex;
+  }
+
+  .court-groups,
+  .slot-grid {
+    grid-template-columns: 1fr;
+  }
+}
