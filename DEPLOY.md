@@ -1,6 +1,6 @@
 # 二拍即合发布说明
 
-这个网站需要后台实时读取 TBC / UBC 公开订场页面，所以要部署成 Web Service，不能只用静态网页托管。
+这个网站需要后台实时读取 Tennishub / UBC 公开订场页面，所以要部署成 Web Service，不能只用静态网页托管。
 
 ## 推荐：Render Docker Web Service
 
@@ -21,4 +21,4 @@
 
 - 不要部署成 Static Site，否则 `/api/availability` 不会工作。
 - 免费实例可能会休眠，第一次打开会慢一点。
-- 官网页面结构如果以后改版，TBC/UBC 抓取逻辑可能需要跟着调整。
+- 官网页面结构如果以后改版，Tennishub/UBC 抓取逻辑可能需要跟着调整。
