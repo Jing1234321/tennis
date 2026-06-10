@@ -158,6 +158,14 @@ function mimeType(filePath) {
   }[ext] || "application/octet-stream";
 }
 
+function cacheHeaders(filePath) {
+  const ext = path.extname(filePath);
+  if ([".html", ".css", ".js"].includes(ext)) {
+    return { "cache-control": "no-store, max-age=0" };
+  }
+  return { "cache-control": "public, max-age=3600" };
+}
+
 function toTime(minutes) {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
@@ -496,7 +504,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    res.writeHead(200, { "content-type": mimeType(filePath) });
+    res.writeHead(200, { "content-type": mimeType(filePath), ...cacheHeaders(filePath) });
     res.end(content);
   });
 });
