@@ -7,6 +7,7 @@ const port = process.env.PORT || 4173;
 const cacheMs = 60 * 1000;
 const persistedCacheMaxAgeMs = 30 * 60 * 1000;
 const cacheFile = path.join(root, "data", "availability.json");
+const backgroundRefreshMs = 10 * 60 * 1000;
 let cachedAvailability = null;
 let cachedAt = 0;
 let inFlightAvailability = null;
@@ -161,6 +162,17 @@ function mimeType(filePath) {
 
 function toTime(minutes) {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+function emptyAvailability(refreshing = false) {
+  const dates = getWeekDays();
+  return {
+    updatedAt: null,
+    source: "warming-up",
+    refreshing,
+    tbc: Object.fromEntries(dates.map((date) => [date, []])),
+    ubc: Object.fromEntries(dates.map((date) => [date, []])),
+  };
 }
 
 function getChromium() {
@@ -349,7 +361,30 @@ function availabilityFast(forceRefresh = false) {
     };
   }
 
-  return availability();
+  if (!inFlightAvailability) {
+    inFlightAvailability = scrapeAvailability()
+      .catch((error) => {
+        console.error("Initial availability refresh failed:", error.message);
+        return null;
+      })
+      .finally(() => {
+        inFlightAvailability = null;
+      });
+  }
+
+  return emptyAvailability(true);
+}
+
+function refreshInBackground() {
+  if (inFlightAvailability) return;
+  inFlightAvailability = scrapeAvailability()
+    .catch((error) => {
+      console.error("Scheduled availability refresh failed:", error.message);
+      return null;
+    })
+    .finally(() => {
+      inFlightAvailability = null;
+    });
 }
 
 async function scrapeAvailability() {
@@ -451,6 +486,9 @@ if (require.main === module) {
   server.listen(port, () => {
     console.log(`Tennis site running at http://127.0.0.1:${port}`);
   });
+
+  setTimeout(refreshInBackground, 1500);
+  setInterval(refreshInBackground, backgroundRefreshMs);
 }
 
 module.exports = {

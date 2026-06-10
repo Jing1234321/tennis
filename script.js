@@ -128,7 +128,7 @@ function getUbcSlotsForDay(day) {
 }
 
 function formatUpdatedAt(value, refreshing = false) {
-  if (!value) return "实时暂不可用";
+  if (!value) return refreshing ? "后台刷新中" : "实时暂不可用";
   const time = new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
