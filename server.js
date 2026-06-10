@@ -8,6 +8,7 @@ const cacheMs = 60 * 1000;
 const cacheFile = path.join(root, "data", "availability.json");
 const tbcConcurrency = Number(process.env.TBC_CONCURRENCY || 4);
 const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 6);
+const refreshTimeoutMs = Number(process.env.REFRESH_TIMEOUT_MS || 55 * 1000);
 let cachedAvailability = null;
 let cachedAt = 0;
 let inFlightAvailability = null;
@@ -404,6 +405,11 @@ function refreshInBackground() {
 async function scrapeAvailability() {
   const chromium = getChromium();
   const browser = await chromium.launch({ headless: true });
+  const refreshTimeout = setTimeout(() => {
+    console.error("Availability refresh timed out; closing browser.");
+    browser.close().catch(() => {});
+  }, refreshTimeoutMs);
+  refreshTimeout.unref?.();
   const dates = getWeekDays();
   const targetDates = new Set(dates);
   const tbc = {};
@@ -441,7 +447,8 @@ async function scrapeAvailability() {
       ubc[date] = ubc[date].map(({ dateISO, ...slot }) => slot);
     }
   } finally {
-    await browser.close();
+    clearTimeout(refreshTimeout);
+    await browser.close().catch(() => {});
   }
 
   const nextAvailability = {
