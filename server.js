@@ -173,6 +173,13 @@ function emptyAvailability(refreshing = false) {
   };
 }
 
+function totalSlots(data) {
+  if (!data) return 0;
+  const tbcTotal = Object.values(data.tbc || {}).reduce((sum, slots) => sum + slots.length, 0);
+  const ubcTotal = Object.values(data.ubc || {}).reduce((sum, slots) => sum + slots.length, 0);
+  return tbcTotal + ubcTotal;
+}
+
 function getChromium() {
   if (!playwrightModule) {
     try {
@@ -428,12 +435,26 @@ async function scrapeAvailability() {
     await browser.close();
   }
 
-  cachedAvailability = {
+  const nextAvailability = {
     updatedAt: new Date().toISOString(),
     source: "live-public-pages",
     tbc,
     ubc,
   };
+
+  const nextTotal = totalSlots(nextAvailability);
+  const cachedTotal = totalSlots(cachedAvailability);
+  console.log(`Availability refresh result: ${nextTotal} slots`);
+
+  if (nextTotal === 0 && cachedTotal > 0) {
+    console.error("Availability refresh returned zero slots; keeping previous cached data.");
+    return {
+      ...cachedAvailability,
+      stale: true,
+    };
+  }
+
+  cachedAvailability = nextAvailability;
   cachedAt = Date.now();
   try {
     fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
