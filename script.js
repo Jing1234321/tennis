@@ -127,25 +127,16 @@ function getUbcSlotsForDay(day) {
   return liveAvailability.ubc[day.iso] ?? ubcEveningAvailability[day.iso] ?? ubcEveningAvailability.default;
 }
 
-function formatUpdatedAt(value, refreshing = false) {
-  if (!value) return refreshing ? "后台刷新中" : "实时暂不可用";
+function formatUpdatedAt(value) {
+  if (!value) return "正在更新";
   const updated = new Date(value);
-  const ageMinutes = Math.max(0, Math.floor((Date.now() - updated.getTime()) / 60000));
   const time = new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "America/Vancouver",
   }).format(updated);
 
-  if (ageMinutes < 2) {
-    return refreshing ? `刚刚更新 ${time} · 后台刷新中` : `刚刚更新 ${time}`;
-  }
-
-  if (ageMinutes < 10) {
-    return refreshing ? `上次更新 ${time} · ${ageMinutes}分钟前 · 后台刷新中` : `上次更新 ${time} · ${ageMinutes}分钟前`;
-  }
-
-  return refreshing ? `数据偏旧：上次更新 ${time} · ${ageMinutes}分钟前 · 正在重试` : `数据偏旧：上次更新 ${time} · ${ageMinutes}分钟前`;
+  return `上次更新 ${time}`;
 }
 
 function renderDate() {
@@ -493,13 +484,15 @@ function renderAvailability() {
 }
 
 async function loadAvailability({ refresh = false, followUp = false } = {}) {
-  availabilityStatus.textContent = refresh ? "后台刷新中..." : "读取中...";
+  if (!liveAvailability.updatedAt) {
+    availabilityStatus.textContent = refresh ? "正在更新..." : "读取中...";
+  }
   refreshButton.disabled = true;
   try {
     const response = await fetch(`/api/availability?${refresh ? "refresh=1&" : ""}ts=${Date.now()}`);
     if (!response.ok) throw new Error("Availability API failed");
     liveAvailability = await response.json();
-    availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt, liveAvailability.refreshing);
+    availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt);
 
     if ((refresh || liveAvailability.refreshing) && !followUp) {
       window.setTimeout(() => loadAvailability({ followUp: true }), 32000);
