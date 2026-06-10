@@ -95,7 +95,7 @@ const weekList = document.querySelector("#weekList");
 const availabilityOverview = document.querySelector("#availabilityOverview");
 const availabilityStatus = document.querySelector("#availabilityStatus");
 const refreshButton = document.querySelector("#refreshButton");
-const autoRefreshMs = 10 * 60 * 1000;
+const autoRefreshMs = 60 * 1000;
 
 function getWeekDays() {
   return Array.from({ length: 7 }, (_, index) => {
