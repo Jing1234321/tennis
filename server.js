@@ -347,10 +347,31 @@ async function availability() {
 
   if (inFlightAvailability) return inFlightAvailability;
 
-  inFlightAvailability = scrapeAvailability().finally(() => {
-    inFlightAvailability = null;
-  });
+  inFlightAvailability = startAvailabilityRefresh("Availability refresh");
   return inFlightAvailability;
+}
+
+function startAvailabilityRefresh(label) {
+  let task;
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} exceeded ${refreshTimeoutMs}ms`)), refreshTimeoutMs + 5000);
+    timer.unref?.();
+  });
+
+  task = Promise.race([scrapeAvailability(), timeout])
+    .catch((error) => {
+      console.error(`${label} failed:`, error.message);
+      return null;
+    })
+    .finally(() => {
+      clearTimeout(timer);
+      if (inFlightAvailability === task) {
+        inFlightAvailability = null;
+      }
+    });
+
+  return task;
 }
 
 function availabilityFast(forceRefresh = false) {
@@ -358,14 +379,7 @@ function availabilityFast(forceRefresh = false) {
   const isFresh = hasCache && Date.now() - cachedAt < cacheMs;
 
   if ((forceRefresh || !isFresh) && !inFlightAvailability) {
-    inFlightAvailability = scrapeAvailability()
-      .catch((error) => {
-        console.error("Availability refresh failed:", error.message);
-        return null;
-      })
-      .finally(() => {
-        inFlightAvailability = null;
-      });
+    inFlightAvailability = startAvailabilityRefresh("Availability refresh");
   }
 
   if (hasCache) {
@@ -377,14 +391,7 @@ function availabilityFast(forceRefresh = false) {
   }
 
   if (!inFlightAvailability) {
-    inFlightAvailability = scrapeAvailability()
-      .catch((error) => {
-        console.error("Initial availability refresh failed:", error.message);
-        return null;
-      })
-      .finally(() => {
-        inFlightAvailability = null;
-      });
+    inFlightAvailability = startAvailabilityRefresh("Initial availability refresh");
   }
 
   return emptyAvailability(true);
@@ -392,14 +399,7 @@ function availabilityFast(forceRefresh = false) {
 
 function refreshInBackground() {
   if (inFlightAvailability) return;
-  inFlightAvailability = scrapeAvailability()
-    .catch((error) => {
-      console.error("Scheduled availability refresh failed:", error.message);
-      return null;
-    })
-    .finally(() => {
-      inFlightAvailability = null;
-    });
+  inFlightAvailability = startAvailabilityRefresh("Scheduled availability refresh");
 }
 
 async function scrapeAvailability() {
