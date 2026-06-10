@@ -7,6 +7,8 @@ const port = process.env.PORT || 4173;
 const cacheMs = 60 * 1000;
 const cacheFile = path.join(root, "data", "availability.json");
 const backgroundRefreshMs = 60 * 1000;
+const tbcConcurrency = Number(process.env.TBC_CONCURRENCY || 2);
+const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 2);
 let cachedAvailability = null;
 let cachedAt = 0;
 let inFlightAvailability = null;
@@ -414,7 +416,7 @@ async function scrapeAvailability() {
       ubc[date] = [];
     }
 
-    await mapLimit(dates, 4, async (date) => {
+    await mapLimit(dates, tbcConcurrency, async (date) => {
       const page = await browser.newPage();
       try {
         tbc[date] = dedupeSlots((await scrapeTbc(page, date).catch(() => [])).map((slot) => ({ ...slot, dateISO: date })));
@@ -428,7 +430,7 @@ async function scrapeAvailability() {
       startDates.map((startDate) => ({ court, startDate })),
     );
 
-    const ubcGroups = await mapLimit(ubcJobs, 6, ({ court, startDate }) =>
+    const ubcGroups = await mapLimit(ubcJobs, ubcConcurrency, ({ court, startDate }) =>
       scrapeUbcCourt(browser, court, startDate, targetDates).catch(() => []),
     );
     for (const slot of ubcGroups.flat()) {

@@ -129,12 +129,23 @@ function getUbcSlotsForDay(day) {
 
 function formatUpdatedAt(value, refreshing = false) {
   if (!value) return refreshing ? "后台刷新中" : "实时暂不可用";
+  const updated = new Date(value);
+  const ageMinutes = Math.max(0, Math.floor((Date.now() - updated.getTime()) / 60000));
   const time = new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "America/Vancouver",
-  }).format(new Date(value));
-  return refreshing ? `已更新 ${time} · 后台刷新中` : `已更新 ${time}`;
+  }).format(updated);
+
+  if (ageMinutes < 2) {
+    return refreshing ? `刚刚更新 ${time} · 后台刷新中` : `刚刚更新 ${time}`;
+  }
+
+  if (ageMinutes < 10) {
+    return refreshing ? `上次成功 ${time} · ${ageMinutes}分钟前 · 后台刷新中` : `上次成功 ${time} · ${ageMinutes}分钟前`;
+  }
+
+  return refreshing ? `数据偏旧：上次成功 ${time} · ${ageMinutes}分钟前 · 正在重试` : `数据偏旧：上次成功 ${time} · ${ageMinutes}分钟前`;
 }
 
 function renderDate() {
