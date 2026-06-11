@@ -9,16 +9,18 @@ const cacheFile = path.join(root, "data", "availability.json");
 const tbcConcurrency = Number(process.env.TBC_CONCURRENCY || 4);
 const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 6);
 const refreshTimeoutMs = Number(process.env.REFRESH_TIMEOUT_MS || 55 * 1000);
+const refreshRetryMs = Number(process.env.REFRESH_RETRY_MS || 60 * 1000);
 let cachedAvailability = null;
 let cachedAt = 0;
 let inFlightAvailability = null;
+let lastRefreshStartedAt = 0;
 let playwrightModule = null;
 
 try {
   const persisted = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
   if (persisted && persisted.updatedAt) {
     cachedAvailability = persisted;
-    cachedAt = new Date(persisted.updatedAt).getTime();
+    cachedAt = new Date(persisted.checkedAt || persisted.updatedAt).getTime();
   }
 } catch {
   cachedAvailability = null;
@@ -361,6 +363,7 @@ async function availability() {
 }
 
 function startAvailabilityRefresh(label) {
+  lastRefreshStartedAt = Date.now();
   let task;
   let timer;
   const timeout = new Promise((_, reject) => {
@@ -385,9 +388,9 @@ function startAvailabilityRefresh(label) {
 
 function availabilityFast(forceRefresh = false) {
   const hasCache = Boolean(cachedAvailability);
-  const isFresh = hasCache && Date.now() - cachedAt < cacheMs;
+  const canRetry = Date.now() - lastRefreshStartedAt > refreshRetryMs;
 
-  if ((forceRefresh || !isFresh) && !inFlightAvailability) {
+  if ((forceRefresh || !hasCache) && !inFlightAvailability && canRetry) {
     inFlightAvailability = startAvailabilityRefresh("Availability refresh");
   }
 
