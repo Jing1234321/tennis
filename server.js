@@ -406,81 +406,23 @@ function releaseExpiredRefresh() {
 }
 
 function availabilityFast(forceRefresh = false, asyncRefresh = false) {
-  releaseExpiredRefresh();
-  const hasCache = Boolean(cachedAvailability);
-  const canRetry = Date.now() - lastRefreshStartedAt > refreshRetryMs;
-
-  if (forceRefresh && !asyncRefresh) {
-    if (!inFlightAvailability) {
-      inFlightAvailability = startAvailabilityRefresh("Live availability refresh");
-    }
-
-    return inFlightAvailability.then((data) => {
-      if (!data) throw new Error("Live availability refresh failed");
-      return data;
-    });
-  }
-
-  if ((forceRefresh || !hasCache) && !inFlightAvailability && canRetry) {
-    inFlightAvailability = startAvailabilityRefresh("Availability refresh");
-  }
-
-  if (hasCache) {
+  if (cachedAvailability) {
     return {
       ...cachedAvailability,
       cached: true,
-      refreshing: Boolean(inFlightAvailability),
+      refreshing: false,
     };
   }
 
-  if (!inFlightAvailability) {
-    inFlightAvailability = startAvailabilityRefresh("Initial availability refresh");
-  }
-
-  return emptyAvailability(true);
+  return emptyAvailability(false);
 }
 
 function availabilityLive(forceRefresh = false, liveSince = 0) {
-  releaseExpiredRefresh();
-  const requestedAt = liveSince || Date.now();
-
-  if (forceRefresh && !inFlightAvailability) {
-    inFlightAvailability = startAvailabilityRefresh("Live availability refresh");
-  }
-
-  const updatedAt = cachedAvailability?.updatedAt ? new Date(cachedAvailability.updatedAt).getTime() : 0;
-  if (cachedAvailability && updatedAt >= requestedAt) {
-    return {
-      ...cachedAvailability,
-      cached: true,
-      refreshing: Boolean(inFlightAvailability),
-      liveSince: requestedAt,
-    };
-  }
-
-  if (inFlightAvailability) {
-    return {
-      ...emptyAvailability(true),
-      source: "live-refreshing",
-      liveSince: requestedAt,
-    };
-  }
-
-  if (lastRefreshError) {
-    throw new Error(lastRefreshError);
-  }
-
-  return {
-    ...emptyAvailability(false),
-    source: "live-pending",
-    liveSince: requestedAt,
-  };
+  return availabilityFast(forceRefresh, false);
 }
 
 function refreshInBackground() {
-  releaseExpiredRefresh();
-  if (inFlightAvailability) return;
-  inFlightAvailability = startAvailabilityRefresh("Scheduled availability refresh");
+  return null;
 }
 
 async function scrapeAvailability() {
@@ -636,9 +578,6 @@ if (require.main === module) {
   server.listen(port, () => {
     console.log(`Tennis site running at http://127.0.0.1:${port}`);
   });
-
-  setTimeout(refreshInBackground, 1500);
-  setInterval(refreshInBackground, backgroundRefreshMs);
 }
 
 module.exports = {

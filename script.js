@@ -98,6 +98,8 @@ const refreshButton = document.querySelector("#refreshButton");
 const autoRefreshMs = 60 * 1000;
 const refreshPollMs = 15 * 1000;
 const productionOrigin = "https://tennis-783m.onrender.com";
+const availabilityCacheUrl =
+  "https://raw.githubusercontent.com/Jing1234321/tennis/availability-cache/data/availability.json";
 let availabilityPollTimer = null;
 let availabilityRequestId = 0;
 let liveSince = null;
@@ -496,20 +498,12 @@ function scheduleAvailabilityFollowUp(requestId) {
 }
 
 async function fetchAvailabilityData(refresh, followUp) {
-  const params = new URLSearchParams({ ts: String(Date.now()) });
-  if (refresh && !followUp) {
-    params.set("refresh", "1");
-    params.set("live", "1");
-  }
-  if (followUp && liveSince) {
-    params.set("live", "1");
-    params.set("liveSince", String(liveSince));
-  }
-  const path = `/api/availability?${params.toString()}`;
+  const ts = Date.now();
+  const path = `/api/availability?ts=${ts}`;
   const urls =
     location.protocol === "file:"
-      ? [`${productionOrigin}${path}`]
-      : [...new Set([path, `${productionOrigin}${path}`])];
+      ? [`${availabilityCacheUrl}?ts=${ts}`, `${productionOrigin}${path}`]
+      : [...new Set([`${availabilityCacheUrl}?ts=${ts}`, path, `${productionOrigin}${path}`])];
   let lastError;
 
   for (const url of urls) {
@@ -551,23 +545,8 @@ async function loadAvailability({ refresh = false, followUp = false, requestId =
   refreshButton.disabled = true;
   try {
     liveAvailability = await fetchAvailabilityData(refresh, followUp);
-    if (liveAvailability.liveSince) liveSince = liveAvailability.liveSince;
-
-    if (liveAvailability.refreshing && !liveAvailability.updatedAt) {
-      availabilityStatus.textContent = "实时读取中...";
-      renderLiveLoading();
-      if (currentRequestId === availabilityRequestId) {
-        scheduleAvailabilityFollowUp(currentRequestId);
-      }
-      return;
-    }
-
     availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt);
-    liveSince = null;
-
-    if (liveAvailability.refreshing && currentRequestId === availabilityRequestId) {
-      scheduleAvailabilityFollowUp(currentRequestId);
-    } else if (currentRequestId === availabilityRequestId) {
+    if (currentRequestId === availabilityRequestId) {
       window.clearTimeout(availabilityPollTimer);
     }
   } catch {
