@@ -394,7 +394,16 @@ function startAvailabilityRefresh(label) {
   return task;
 }
 
+function releaseExpiredRefresh() {
+  if (!inFlightAvailability) return;
+  const refreshAgeMs = Date.now() - lastRefreshStartedAt;
+  if (refreshAgeMs <= refreshTimeoutMs + 15 * 1000) return;
+  console.error(`Availability refresh watchdog released stuck task after ${refreshAgeMs}ms.`);
+  inFlightAvailability = null;
+}
+
 function availabilityFast(forceRefresh = false, asyncRefresh = false) {
+  releaseExpiredRefresh();
   const hasCache = Boolean(cachedAvailability);
   const canRetry = Date.now() - lastRefreshStartedAt > refreshRetryMs;
 
@@ -429,6 +438,7 @@ function availabilityFast(forceRefresh = false, asyncRefresh = false) {
 }
 
 function refreshInBackground() {
+  releaseExpiredRefresh();
   if (inFlightAvailability) return;
   inFlightAvailability = startAvailabilityRefresh("Scheduled availability refresh");
 }
@@ -522,6 +532,7 @@ const server = http.createServer(async (req, res) => {
   };
 
   if (url.pathname === "/api/health") {
+    releaseExpiredRefresh();
     res.writeHead(200, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
     res.end(
       JSON.stringify({
@@ -529,6 +540,7 @@ const server = http.createServer(async (req, res) => {
         updatedAt: cachedAvailability?.updatedAt ?? null,
         checkedAt: cachedAvailability?.checkedAt ?? null,
         refreshing: Boolean(inFlightAvailability),
+        refreshAgeMs: inFlightAvailability ? Date.now() - lastRefreshStartedAt : 0,
         backgroundRefreshMs,
         refreshTimeoutMs,
         refreshRetryMs,
