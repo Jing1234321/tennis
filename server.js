@@ -15,6 +15,7 @@ let cachedAvailability = null;
 let cachedAt = 0;
 let inFlightAvailability = null;
 let lastRefreshStartedAt = 0;
+let lastRefreshError = null;
 let playwrightModule = null;
 
 try {
@@ -372,6 +373,7 @@ async function availability() {
 
 function startAvailabilityRefresh(label) {
   lastRefreshStartedAt = Date.now();
+  lastRefreshError = null;
   let task;
   let timer;
   const timeout = new Promise((_, reject) => {
@@ -382,6 +384,7 @@ function startAvailabilityRefresh(label) {
   task = Promise.race([scrapeAvailability(), timeout])
     .catch((error) => {
       console.error(`${label} failed:`, error.message);
+      lastRefreshError = error.message;
       return null;
     })
     .finally(() => {
@@ -435,6 +438,43 @@ function availabilityFast(forceRefresh = false, asyncRefresh = false) {
   }
 
   return emptyAvailability(true);
+}
+
+function availabilityLive(forceRefresh = false, liveSince = 0) {
+  releaseExpiredRefresh();
+  const requestedAt = liveSince || Date.now();
+
+  if (forceRefresh && !inFlightAvailability) {
+    inFlightAvailability = startAvailabilityRefresh("Live availability refresh");
+  }
+
+  const updatedAt = cachedAvailability?.updatedAt ? new Date(cachedAvailability.updatedAt).getTime() : 0;
+  if (cachedAvailability && updatedAt >= requestedAt) {
+    return {
+      ...cachedAvailability,
+      cached: true,
+      refreshing: Boolean(inFlightAvailability),
+      liveSince: requestedAt,
+    };
+  }
+
+  if (inFlightAvailability) {
+    return {
+      ...emptyAvailability(true),
+      source: "live-refreshing",
+      liveSince: requestedAt,
+    };
+  }
+
+  if (lastRefreshError) {
+    throw new Error(lastRefreshError);
+  }
+
+  return {
+    ...emptyAvailability(false),
+    source: "live-pending",
+    liveSince: requestedAt,
+  };
 }
 
 function refreshInBackground() {
@@ -541,6 +581,7 @@ const server = http.createServer(async (req, res) => {
         checkedAt: cachedAvailability?.checkedAt ?? null,
         refreshing: Boolean(inFlightAvailability),
         refreshAgeMs: inFlightAvailability ? Date.now() - lastRefreshStartedAt : 0,
+        lastRefreshError,
         backgroundRefreshMs,
         refreshTimeoutMs,
         refreshRetryMs,
@@ -559,7 +600,9 @@ const server = http.createServer(async (req, res) => {
     try {
       const forceRefresh = url.searchParams.get("refresh") === "1";
       const asyncRefresh = url.searchParams.get("async") === "1";
-      const data = availabilityFast(forceRefresh, asyncRefresh);
+      const liveRefresh = url.searchParams.get("live") === "1";
+      const liveSince = Number(url.searchParams.get("liveSince") || 0);
+      const data = liveRefresh ? availabilityLive(forceRefresh, liveSince) : availabilityFast(forceRefresh, asyncRefresh);
       res.writeHead(200, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(await data));
     } catch (error) {

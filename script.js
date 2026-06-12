@@ -100,6 +100,7 @@ const refreshPollMs = 15 * 1000;
 const productionOrigin = "https://tennis-783m.onrender.com";
 let availabilityPollTimer = null;
 let availabilityRequestId = 0;
+let liveSince = null;
 
 function getWeekDays() {
   return Array.from({ length: 7 }, (_, index) => {
@@ -495,7 +496,16 @@ function scheduleAvailabilityFollowUp(requestId) {
 }
 
 async function fetchAvailabilityData(refresh, followUp) {
-  const path = `/api/availability?${refresh && !followUp ? "refresh=1&" : ""}ts=${Date.now()}`;
+  const params = new URLSearchParams({ ts: String(Date.now()) });
+  if (refresh && !followUp) {
+    params.set("refresh", "1");
+    params.set("live", "1");
+  }
+  if (followUp && liveSince) {
+    params.set("live", "1");
+    params.set("liveSince", String(liveSince));
+  }
+  const path = `/api/availability?${params.toString()}`;
   const urls =
     location.protocol === "file:"
       ? [`${productionOrigin}${path}`]
@@ -515,6 +525,21 @@ async function fetchAvailabilityData(refresh, followUp) {
   throw lastError;
 }
 
+function renderLiveLoading() {
+  availabilityOverview.innerHTML = "";
+  weekList.innerHTML = `
+    <article class="day-card">
+      <div class="day-card-head">
+        <div>
+          <span class="weekday">Live</span>
+          <h3>实时读取中</h3>
+        </div>
+      </div>
+      <p class="empty">正在读取官网最新空场...</p>
+    </article>
+  `;
+}
+
 async function loadAvailability({ refresh = false, followUp = false, requestId = null } = {}) {
   const currentRequestId = requestId ?? ++availabilityRequestId;
   if (!followUp) {
@@ -526,7 +551,19 @@ async function loadAvailability({ refresh = false, followUp = false, requestId =
   refreshButton.disabled = true;
   try {
     liveAvailability = await fetchAvailabilityData(refresh, followUp);
+    if (liveAvailability.liveSince) liveSince = liveAvailability.liveSince;
+
+    if (liveAvailability.refreshing && !liveAvailability.updatedAt) {
+      availabilityStatus.textContent = "实时读取中...";
+      renderLiveLoading();
+      if (currentRequestId === availabilityRequestId) {
+        scheduleAvailabilityFollowUp(currentRequestId);
+      }
+      return;
+    }
+
     availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt);
+    liveSince = null;
 
     if (liveAvailability.refreshing && currentRequestId === availabilityRequestId) {
       scheduleAvailabilityFollowUp(currentRequestId);
