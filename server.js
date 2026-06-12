@@ -8,8 +8,9 @@ const cacheMs = 60 * 1000;
 const cacheFile = path.join(root, "data", "availability.json");
 const tbcConcurrency = Number(process.env.TBC_CONCURRENCY || 4);
 const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 6);
-const refreshTimeoutMs = Number(process.env.REFRESH_TIMEOUT_MS || 55 * 1000);
+const refreshTimeoutMs = Number(process.env.REFRESH_TIMEOUT_MS || 90 * 1000);
 const refreshRetryMs = Number(process.env.REFRESH_RETRY_MS || 60 * 1000);
+const backgroundRefreshMs = Number(process.env.BACKGROUND_REFRESH_MS || 5 * 60 * 1000);
 let cachedAvailability = null;
 let cachedAt = 0;
 let inFlightAvailability = null;
@@ -496,17 +497,32 @@ async function scrapeAvailability() {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  const apiHeaders = {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, OPTIONS",
+    "access-control-allow-headers": "content-type",
+    "cache-control": "no-store",
+  };
+
+  if (url.pathname === "/api/health") {
+    res.writeHead(200, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
+    res.end(
+      JSON.stringify({
+        ok: true,
+        updatedAt: cachedAvailability?.updatedAt ?? null,
+        checkedAt: cachedAvailability?.checkedAt ?? null,
+        refreshing: Boolean(inFlightAvailability),
+        backgroundRefreshMs,
+        refreshTimeoutMs,
+        refreshRetryMs,
+      }),
+    );
+    return;
+  }
 
   if (url.pathname === "/api/availability") {
-    const headers = {
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, OPTIONS",
-      "access-control-allow-headers": "content-type",
-      "cache-control": "no-store",
-    };
-
     if (req.method === "OPTIONS") {
-      res.writeHead(204, headers);
+      res.writeHead(204, apiHeaders);
       res.end();
       return;
     }
@@ -514,10 +530,10 @@ const server = http.createServer(async (req, res) => {
     try {
       const forceRefresh = url.searchParams.get("refresh") === "1";
       const data = availabilityFast(forceRefresh);
-      res.writeHead(200, { ...headers, "content-type": "application/json; charset=utf-8" });
+      res.writeHead(200, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(await data));
     } catch (error) {
-      res.writeHead(500, { ...headers, "content-type": "application/json; charset=utf-8" });
+      res.writeHead(500, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ error: error.message }));
     }
     return;
@@ -549,6 +565,7 @@ if (require.main === module) {
   });
 
   setTimeout(refreshInBackground, 1500);
+  setInterval(refreshInBackground, backgroundRefreshMs);
 }
 
 module.exports = {

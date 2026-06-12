@@ -1,0 +1,17 @@
+name: Refresh availability
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Wake Render and trigger refresh
+        run: |
+          set -euo pipefail
+          base="https://tennis-783m.onrender.com"
+          curl --fail --silent --show-error --max-time 70 --output /tmp/availability.json "$base/api/availability?refresh=1&source=github-actions&ts=$(date +%s)"
