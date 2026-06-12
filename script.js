@@ -540,7 +540,7 @@ async function fetchAvailabilityData(refresh, followUp) {
   let lastError;
 
   try {
-    return await fetchServerAvailabilityData(ts);
+    return await fetchGithubAvailabilityData(ts);
   } catch (error) {
     lastError = error;
   }
@@ -556,7 +556,7 @@ async function fetchAvailabilityData(refresh, followUp) {
   }
 
   try {
-    return await fetchGithubAvailabilityData(ts);
+    return await fetchServerAvailabilityData(ts);
   } catch (error) {
     lastError = error;
   }
