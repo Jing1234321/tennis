@@ -98,6 +98,8 @@ const refreshButton = document.querySelector("#refreshButton");
 const autoRefreshMs = 60 * 1000;
 const refreshPollMs = 15 * 1000;
 const productionOrigin = "https://tennis-783m.onrender.com";
+const availabilityCacheApiUrl =
+  "https://api.github.com/repos/Jing1234321/tennis/contents/data/availability.json?ref=availability-cache";
 const availabilityCacheUrl =
   "https://raw.githubusercontent.com/Jing1234321/tennis/availability-cache/data/availability.json";
 let availabilityPollTimer = null;
@@ -497,6 +499,22 @@ function scheduleAvailabilityFollowUp(requestId) {
   }, refreshPollMs);
 }
 
+function decodeBase64Json(content) {
+  const binary = atob(String(content || "").replace(/\n/g, ""));
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+async function fetchGithubAvailabilityData(ts) {
+  const response = await fetch(`${availabilityCacheApiUrl}&ts=${ts}`, {
+    cache: "no-store",
+    headers: { Accept: "application/vnd.github+json" },
+  });
+  if (!response.ok) throw new Error("GitHub availability cache failed");
+  const payload = await response.json();
+  return decodeBase64Json(payload.content);
+}
+
 async function fetchAvailabilityData(refresh, followUp) {
   const ts = Date.now();
   const path = `/api/availability?ts=${ts}`;
@@ -505,6 +523,12 @@ async function fetchAvailabilityData(refresh, followUp) {
       ? [`${availabilityCacheUrl}?ts=${ts}`, `${productionOrigin}${path}`]
       : [...new Set([`${availabilityCacheUrl}?ts=${ts}`, path, `${productionOrigin}${path}`])];
   let lastError;
+
+  try {
+    return await fetchGithubAvailabilityData(ts);
+  } catch (error) {
+    lastError = error;
+  }
 
   for (const url of urls) {
     try {
