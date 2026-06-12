@@ -1,8 +1,17 @@
 name: Refresh availability
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/refresh-availability.yml"
+      - "server.js"
+      - "scripts/update-availability.js"
+      - "package.json"
+      - "package-lock.json"
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
