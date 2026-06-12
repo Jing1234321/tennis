@@ -193,6 +193,13 @@ function totalSlots(data) {
   return tbcTotal + ubcTotal;
 }
 
+function sourceTotals(data) {
+  return {
+    tbc: Object.values(data?.tbc || {}).reduce((sum, slots) => sum + slots.length, 0),
+    ubc: Object.values(data?.ubc || {}).reduce((sum, slots) => sum + slots.length, 0),
+  };
+}
+
 function writeAvailabilityCache() {
   try {
     fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
@@ -387,9 +394,20 @@ function startAvailabilityRefresh(label) {
   return task;
 }
 
-function availabilityFast(forceRefresh = false) {
+function availabilityFast(forceRefresh = false, asyncRefresh = false) {
   const hasCache = Boolean(cachedAvailability);
   const canRetry = Date.now() - lastRefreshStartedAt > refreshRetryMs;
+
+  if (forceRefresh && !asyncRefresh) {
+    if (!inFlightAvailability) {
+      inFlightAvailability = startAvailabilityRefresh("Live availability refresh");
+    }
+
+    return inFlightAvailability.then((data) => {
+      if (!data) throw new Error("Live availability refresh failed");
+      return data;
+    });
+  }
 
   if ((forceRefresh || !hasCache) && !inFlightAvailability && canRetry) {
     inFlightAvailability = startAvailabilityRefresh("Availability refresh");
@@ -473,20 +491,19 @@ async function scrapeAvailability() {
     ubc,
   };
 
-  const nextTotal = totalSlots(nextAvailability);
-  const cachedTotal = totalSlots(cachedAvailability);
+  const nextTotals = sourceTotals(nextAvailability);
+  const cachedTotals = sourceTotals(cachedAvailability);
+  const nextTotal = nextTotals.tbc + nextTotals.ubc;
   console.log(`Availability refresh result: ${nextTotal} slots`);
 
-  if (nextTotal === 0 && cachedTotal > 0) {
-    console.error("Availability refresh returned zero slots; keeping previous cached data.");
-    cachedAvailability = {
-      ...cachedAvailability,
-      checkedAt,
-      stale: true,
-    };
-    cachedAt = Date.now();
-    writeAvailabilityCache();
-    return cachedAvailability;
+  if (nextTotal === 0) {
+    throw new Error("Availability refresh returned zero slots");
+  }
+
+  if ((cachedTotals.tbc > 0 && nextTotals.tbc === 0) || (cachedTotals.ubc > 0 && nextTotals.ubc === 0)) {
+    throw new Error(
+      `Availability refresh returned incomplete source data: Tennis Hub ${nextTotals.tbc}, UBC ${nextTotals.ubc}`,
+    );
   }
 
   cachedAvailability = nextAvailability;
@@ -529,7 +546,8 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const forceRefresh = url.searchParams.get("refresh") === "1";
-      const data = availabilityFast(forceRefresh);
+      const asyncRefresh = url.searchParams.get("async") === "1";
+      const data = availabilityFast(forceRefresh, asyncRefresh);
       res.writeHead(200, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(await data));
     } catch (error) {

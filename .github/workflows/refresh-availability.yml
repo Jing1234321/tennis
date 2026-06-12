@@ -14,4 +14,4 @@ jobs:
         run: |
           set -euo pipefail
           base="https://tennis-783m.onrender.com"
-          curl --fail --silent --show-error --max-time 70 --output /tmp/availability.json "$base/api/availability?refresh=1&source=github-actions&ts=$(date +%s)"
+          curl --fail --silent --show-error --max-time 70 --output /tmp/availability.json "$base/api/availability?refresh=1&async=1&source=github-actions&ts=$(date +%s)"

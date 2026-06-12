@@ -534,12 +534,8 @@ async function loadAvailability({ refresh = false, followUp = false, requestId =
       window.clearTimeout(availabilityPollTimer);
     }
   } catch {
-    if (liveAvailability.updatedAt) {
-      availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt);
-    } else {
-      liveAvailability = { updatedAt: null, tbc: {}, ubc: {} };
-      availabilityStatus.textContent = "连接失败，点官网确认";
-    }
+    liveAvailability = { updatedAt: null, tbc: {}, ubc: {} };
+    availabilityStatus.textContent = "实时读取失败，点官网确认";
   } finally {
     refreshButton.disabled = false;
   }
