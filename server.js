@@ -4,7 +4,7 @@ const path = require("path");
 
 const root = __dirname;
 const port = process.env.PORT || 4173;
-const cacheMs = 60 * 1000;
+const cacheMs = Number(process.env.CACHE_MS || 60 * 1000);
 const cacheFile = path.join(root, "data", "availability.json");
 const tbcConcurrency = Number(process.env.TBC_CONCURRENCY || 2);
 const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 2);
@@ -153,6 +153,19 @@ async function mapLimit(items, limit, fn) {
   return results;
 }
 
+async function withRetry(fn, attempts, label) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      console.error(`${label} attempt ${attempt} failed:`, error.message);
+    }
+  }
+  throw lastError;
+}
+
 function mimeType(filePath) {
   const ext = path.extname(filePath);
   return {
@@ -288,6 +301,7 @@ async function scrapeUbc(page, dateISO) {
 async function scrapeUbcCourt(browser, court, startDateISO, targetDates) {
   const page = await browser.newPage();
   try {
+    await page.setViewportSize({ width: 1600, height: 1100 }).catch(() => {});
     await page.goto(ubcCourtUrl(court, startDateISO), { waitUntil: "domcontentloaded", timeout: 20000 });
     await page.waitForSelector("#scheduler", { timeout: 12000 }).catch(() => {});
     await page.waitForTimeout(800);
@@ -360,15 +374,25 @@ function dedupeSlots(slots) {
     .sort((a, b) => Number(a.court) - Number(b.court) || a.time.localeCompare(b.time));
 }
 
-async function availability() {
+async function availability(forceRefresh = false) {
+  releaseExpiredRefresh();
+
   if (cachedAvailability && Date.now() - cachedAt < cacheMs) {
     return { ...cachedAvailability, cached: true };
   }
 
-  if (inFlightAvailability) return inFlightAvailability;
+  if (inFlightAvailability) {
+    const refreshed = await inFlightAvailability;
+    if (refreshed) return refreshed;
+    if (cachedAvailability) return { ...cachedAvailability, cached: true, stale: true, refreshError: lastRefreshError };
+    return emptyAvailability(false);
+  }
 
   inFlightAvailability = startAvailabilityRefresh("Availability refresh");
-  return inFlightAvailability;
+  const refreshed = await inFlightAvailability;
+  if (refreshed) return refreshed;
+  if (cachedAvailability) return { ...cachedAvailability, cached: true, stale: true, refreshError: lastRefreshError };
+  return emptyAvailability(false);
 }
 
 function startAvailabilityRefresh(label) {
@@ -406,6 +430,10 @@ function releaseExpiredRefresh() {
 }
 
 function availabilityFast(forceRefresh = false, asyncRefresh = false) {
+  if (forceRefresh) {
+    return availability(true);
+  }
+
   if (cachedAvailability) {
     return {
       ...cachedAvailability,
@@ -418,7 +446,7 @@ function availabilityFast(forceRefresh = false, asyncRefresh = false) {
 }
 
 function availabilityLive(forceRefresh = false, liveSince = 0) {
-  return availabilityFast(forceRefresh, false);
+  return availability(Boolean(forceRefresh || !cachedAvailability));
 }
 
 function refreshInBackground() {
@@ -445,21 +473,24 @@ async function scrapeAvailability() {
     }
 
     await mapLimit(dates, tbcConcurrency, async (date) => {
-      const page = await browser.newPage();
-      try {
-        tbc[date] = dedupeSlots((await scrapeTbc(page, date).catch(() => [])).map((slot) => ({ ...slot, dateISO: date })));
-      } finally {
-        await page.close();
-      }
+      const slots = await withRetry(async () => {
+        const page = await browser.newPage();
+        try {
+          return await scrapeTbc(page, date);
+        } finally {
+          await page.close();
+        }
+      }, 2, `Tennis Hub ${date}`);
+      tbc[date] = dedupeSlots(slots.map((slot) => ({ ...slot, dateISO: date })));
     });
 
-    const startDates = [dates[0], dates[5]].filter(Boolean);
+    const startDates = [dates[0]].filter(Boolean);
     const ubcJobs = Object.keys(ubcCourtFacilityIds).flatMap((court) =>
       startDates.map((startDate) => ({ court, startDate })),
     );
 
     const ubcGroups = await mapLimit(ubcJobs, ubcConcurrency, ({ court, startDate }) =>
-      scrapeUbcCourt(browser, court, startDate, targetDates).catch(() => []),
+      withRetry(() => scrapeUbcCourt(browser, court, startDate, targetDates), 2, `UBC court ${court}`),
     );
     for (const slot of ubcGroups.flat()) {
       ubc[slot.dateISO].push(slot);

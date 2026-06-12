@@ -505,6 +505,13 @@ function decodeBase64Json(content) {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
+function assertRecentAvailabilityData(data) {
+  const updated = new Date(data?.updatedAt || 0).getTime();
+  const isRecent = updated && Date.now() - updated <= 10 * 60 * 1000;
+  if (!isRecent || data?.stale) throw new Error("Availability data is stale");
+  return data;
+}
+
 async function fetchGithubAvailabilityData(ts) {
   const response = await fetch(`${availabilityCacheApiUrl}&ts=${ts}`, {
     cache: "no-store",
@@ -512,7 +519,15 @@ async function fetchGithubAvailabilityData(ts) {
   });
   if (!response.ok) throw new Error("GitHub availability cache failed");
   const payload = await response.json();
-  return decodeBase64Json(payload.content);
+  return assertRecentAvailabilityData(decodeBase64Json(payload.content));
+}
+
+async function fetchServerAvailabilityData(ts) {
+  const path = `/api/availability?refresh=1&ts=${ts}`;
+  const url = location.protocol === "file:" ? `${productionOrigin}${path}` : path;
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error("Live availability API failed");
+  return assertRecentAvailabilityData(await response.json());
 }
 
 async function fetchAvailabilityData(refresh, followUp) {
@@ -525,7 +540,7 @@ async function fetchAvailabilityData(refresh, followUp) {
   let lastError;
 
   try {
-    return await fetchGithubAvailabilityData(ts);
+    return await fetchServerAvailabilityData(ts);
   } catch (error) {
     lastError = error;
   }
@@ -534,10 +549,16 @@ async function fetchAvailabilityData(refresh, followUp) {
     try {
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) throw new Error("Availability API failed");
-      return response.json();
+      return assertRecentAvailabilityData(await response.json());
     } catch (error) {
       lastError = error;
     }
+  }
+
+  try {
+    return await fetchGithubAvailabilityData(ts);
+  } catch (error) {
+    lastError = error;
   }
 
   throw lastError;
@@ -575,7 +596,7 @@ async function loadAvailability({ refresh = false, followUp = false, requestId =
     }
   } catch {
     liveAvailability = { updatedAt: null, tbc: {}, ubc: {} };
-    availabilityStatus.textContent = "实时读取失败，点官网确认";
+    availabilityStatus.textContent = "实时更新失败";
   } finally {
     refreshButton.disabled = false;
   }
