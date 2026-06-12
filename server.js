@@ -305,7 +305,7 @@ async function scrapeUbcCourt(browser, court, startDateISO, targetDates) {
       return Array.from(document.querySelectorAll("#scheduler .k-event"))
         .map((event) => {
           const text = tidy(event.innerText || event.textContent);
-          if (!/Bookable 24hrs in advance/i.test(text)) return null;
+          if (!/(Bookable 24hrs in advance|Book Now)/i.test(text)) return null;
           const rect = event.getBoundingClientRect();
           const center = rect.x + rect.width / 2;
           const header =
