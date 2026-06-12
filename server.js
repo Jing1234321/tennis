@@ -8,7 +8,7 @@ const cacheMs = Number(process.env.CACHE_MS || 60 * 1000);
 const cacheFile = path.join(root, "data", "availability.json");
 const tbcConcurrency = Number(process.env.TBC_CONCURRENCY || 2);
 const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 2);
-const refreshTimeoutMs = Number(process.env.REFRESH_TIMEOUT_MS || 180 * 1000);
+const refreshTimeoutMs = Number(process.env.REFRESH_TIMEOUT_MS || 240 * 1000);
 const refreshRetryMs = Number(process.env.REFRESH_RETRY_MS || 60 * 1000);
 const backgroundRefreshMs = Number(process.env.BACKGROUND_REFRESH_MS || 5 * 60 * 1000);
 let cachedAvailability = null;
@@ -293,8 +293,8 @@ async function scrapeTbc(page, dateISO) {
 }
 
 async function scrapeUbc(page, dateISO) {
-  await page.goto(ubcCourtUrl("1", dateISO), { waitUntil: "domcontentloaded", timeout: 20000 });
-  await page.waitForSelector("#scheduler", { timeout: 12000 }).catch(() => {});
+  await page.goto(ubcCourtUrl("1", dateISO), { waitUntil: "commit", timeout: 30000 });
+  await page.waitForSelector("#scheduler", { timeout: 20000 }).catch(() => {});
   return page.evaluate(() => /Bookable 24hrs in advance/i.test(document.body?.innerText || ""));
 }
 
@@ -302,9 +302,9 @@ async function scrapeUbcCourt(browser, court, startDateISO, targetDates) {
   const page = await browser.newPage();
   try {
     await page.setViewportSize({ width: 1600, height: 1100 }).catch(() => {});
-    await page.goto(ubcCourtUrl(court, startDateISO), { waitUntil: "domcontentloaded", timeout: 20000 });
-    await page.waitForSelector("#scheduler", { timeout: 12000 }).catch(() => {});
-    await page.waitForTimeout(800);
+    await page.goto(ubcCourtUrl(court, startDateISO), { waitUntil: "commit", timeout: 30000 });
+    await page.waitForSelector("#scheduler", { timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(1000);
     const baseYear = Number(startDateISO.slice(0, 4));
     const slots = await page.evaluate(() => {
       function tidy(value) {
