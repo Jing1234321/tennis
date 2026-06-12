@@ -498,13 +498,26 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (url.pathname === "/api/availability") {
+    const headers = {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, OPTIONS",
+      "access-control-allow-headers": "content-type",
+      "cache-control": "no-store",
+    };
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, headers);
+      res.end();
+      return;
+    }
+
     try {
       const forceRefresh = url.searchParams.get("refresh") === "1";
       const data = availabilityFast(forceRefresh);
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.writeHead(200, { ...headers, "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(await data));
     } catch (error) {
-      res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
+      res.writeHead(500, { ...headers, "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ error: error.message }));
     }
     return;

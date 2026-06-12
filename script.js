@@ -97,6 +97,7 @@ const availabilityStatus = document.querySelector("#availabilityStatus");
 const refreshButton = document.querySelector("#refreshButton");
 const autoRefreshMs = 60 * 1000;
 const refreshPollMs = 15 * 1000;
+const productionOrigin = "https://tennis-783m.onrender.com";
 let availabilityPollTimer = null;
 let availabilityRequestId = 0;
 
@@ -493,6 +494,27 @@ function scheduleAvailabilityFollowUp(requestId) {
   }, refreshPollMs);
 }
 
+async function fetchAvailabilityData(refresh, followUp) {
+  const path = `/api/availability?${refresh && !followUp ? "refresh=1&" : ""}ts=${Date.now()}`;
+  const urls =
+    location.protocol === "file:"
+      ? [`${productionOrigin}${path}`]
+      : [...new Set([path, `${productionOrigin}${path}`])];
+  let lastError;
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error("Availability API failed");
+      return response.json();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
 async function loadAvailability({ refresh = false, followUp = false, requestId = null } = {}) {
   const currentRequestId = requestId ?? ++availabilityRequestId;
   if (!followUp) {
@@ -503,9 +525,7 @@ async function loadAvailability({ refresh = false, followUp = false, requestId =
   }
   refreshButton.disabled = true;
   try {
-    const response = await fetch(`/api/availability?${refresh && !followUp ? "refresh=1&" : ""}ts=${Date.now()}`);
-    if (!response.ok) throw new Error("Availability API failed");
-    liveAvailability = await response.json();
+    liveAvailability = await fetchAvailabilityData(refresh, followUp);
     availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt);
 
     if (liveAvailability.refreshing && currentRequestId === availabilityRequestId) {
@@ -514,8 +534,12 @@ async function loadAvailability({ refresh = false, followUp = false, requestId =
       window.clearTimeout(availabilityPollTimer);
     }
   } catch {
-    liveAvailability = { updatedAt: null, tbc: {}, ubc: {} };
-    availabilityStatus.textContent = "实时暂不可用，点官网确认";
+    if (liveAvailability.updatedAt) {
+      availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt);
+    } else {
+      liveAvailability = { updatedAt: null, tbc: {}, ubc: {} };
+      availabilityStatus.textContent = "连接失败，点官网确认";
+    }
   } finally {
     refreshButton.disabled = false;
   }
