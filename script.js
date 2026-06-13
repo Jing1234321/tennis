@@ -97,6 +97,7 @@ const availabilityStatus = document.querySelector("#availabilityStatus");
 const refreshButton = document.querySelector("#refreshButton");
 const autoRefreshMs = 60 * 1000;
 const refreshPollMs = 15 * 1000;
+const maxAvailabilityAgeMs = 6 * 60 * 60 * 1000;
 const productionOrigin = "https://tennis-783m.onrender.com";
 const availabilityCacheApiUrl =
   "https://api.github.com/repos/Jing1234321/tennis/contents/data/availability.json?ref=availability-cache";
@@ -505,10 +506,20 @@ function decodeBase64Json(content) {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
-function assertRecentAvailabilityData(data) {
+function todayISO() {
+  const date = new Date();
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function assertUsableAvailabilityData(data) {
   const updated = new Date(data?.updatedAt || 0).getTime();
-  const isRecent = updated && Date.now() - updated <= 10 * 60 * 1000;
-  if (!isRecent || data?.stale) throw new Error("Availability data is stale");
+  const isUsableAge = updated && Date.now() - updated <= maxAvailabilityAgeMs;
+  const hasToday = Boolean(data?.tbc?.[todayISO()] || data?.ubc?.[todayISO()]);
+  if (!isUsableAge || !hasToday) throw new Error("Availability data is stale");
   return data;
 }
 
@@ -519,7 +530,7 @@ async function fetchGithubAvailabilityData(ts) {
   });
   if (!response.ok) throw new Error("GitHub availability cache failed");
   const payload = await response.json();
-  return assertRecentAvailabilityData(decodeBase64Json(payload.content));
+  return assertUsableAvailabilityData(decodeBase64Json(payload.content));
 }
 
 async function fetchServerAvailabilityData(ts) {
@@ -527,7 +538,7 @@ async function fetchServerAvailabilityData(ts) {
   const url = location.protocol === "file:" ? `${productionOrigin}${path}` : path;
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error("Live availability API failed");
-  return assertRecentAvailabilityData(await response.json());
+  return assertUsableAvailabilityData(await response.json());
 }
 
 async function fetchAvailabilityData(refresh, followUp) {
@@ -549,7 +560,7 @@ async function fetchAvailabilityData(refresh, followUp) {
     try {
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) throw new Error("Availability API failed");
-      return assertRecentAvailabilityData(await response.json());
+      return assertUsableAvailabilityData(await response.json());
     } catch (error) {
       lastError = error;
     }
