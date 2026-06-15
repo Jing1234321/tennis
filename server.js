@@ -7,7 +7,7 @@ const port = process.env.PORT || 4173;
 const cacheMs = Number(process.env.CACHE_MS || 60 * 1000);
 const cacheFile = path.join(root, "data", "availability.json");
 const tbcConcurrency = Number(process.env.TBC_CONCURRENCY || 2);
-const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 3);
+const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 2);
 const refreshTimeoutMs = Number(process.env.REFRESH_TIMEOUT_MS || 8 * 60 * 1000);
 const refreshRetryMs = Number(process.env.REFRESH_RETRY_MS || 60 * 1000);
 const backgroundRefreshMs = Number(process.env.BACKGROUND_REFRESH_MS || 5 * 60 * 1000);
@@ -167,7 +167,7 @@ async function withRetry(fn, attempts, label) {
       console.error(`${label} attempt ${attempt} failed:`, error.message);
     }
   }
-  throw lastError;
+  throw new Error(`${label} failed after ${attempts} attempts: ${lastError.message}`);
 }
 
 function mimeType(filePath) {
