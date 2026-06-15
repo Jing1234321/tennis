@@ -204,9 +204,26 @@ function emptyAvailability(refreshing = false) {
   };
 }
 
-async function fetchAvailabilityCache() {
+function availabilityTime(data) {
+  return new Date(data?.checkedAt || data?.updatedAt || 0).getTime() || 0;
+}
+
+function keepNewestAvailability(next) {
+  if (!next?.updatedAt) return cachedAvailability;
+  if (!cachedAvailability || availabilityTime(next) >= availabilityTime(cachedAvailability)) {
+    cachedAvailability = next;
+    cachedAt = availabilityTime(next);
+  }
+  return cachedAvailability;
+}
+
+async function fetchAvailabilityCache(triggerRefresh = false) {
+  if (triggerRefresh) {
+    refreshInBackground();
+  }
+
   if (cachedAvailability && Date.now() - remoteCachedAt < remoteCacheMs) {
-    return { ...cachedAvailability, cached: true, remoteCached: true };
+    return { ...cachedAvailability, cached: true, remoteCached: true, refreshing: Boolean(inFlightAvailability) };
   }
 
   const response = await fetch(`${availabilityCacheApiUrl}&ts=${Date.now()}`, {
@@ -221,10 +238,9 @@ async function fetchAvailabilityCache() {
   if (!payload.content) throw new Error("GitHub availability cache response was empty");
 
   const data = JSON.parse(Buffer.from(String(payload.content).replace(/\n/g, ""), "base64").toString("utf8"));
-  cachedAvailability = data;
-  cachedAt = new Date(data.checkedAt || data.updatedAt || Date.now()).getTime();
+  keepNewestAvailability(data);
   remoteCachedAt = Date.now();
-  return { ...data, cached: true, remoteCached: true };
+  return { ...cachedAvailability, cached: true, remoteCached: true, refreshing: Boolean(inFlightAvailability) };
 }
 
 function totalSlots(data) {
@@ -477,7 +493,10 @@ function availabilityLive(forceRefresh = false, liveSince = 0) {
 }
 
 function refreshInBackground() {
-  return null;
+  releaseExpiredRefresh();
+  if (inFlightAvailability) return inFlightAvailability;
+  inFlightAvailability = startAvailabilityRefresh("Background availability refresh");
+  return inFlightAvailability;
 }
 
 async function scrapeAvailability() {
@@ -620,7 +639,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const data = await fetchAvailabilityCache();
+      const triggerRefresh = url.searchParams.get("refresh") === "1";
+      const data = await fetchAvailabilityCache(triggerRefresh);
       res.writeHead(200, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(data));
     } catch (error) {

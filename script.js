@@ -97,6 +97,7 @@ const availabilityStatus = document.querySelector("#availabilityStatus");
 const refreshButton = document.querySelector("#refreshButton");
 const autoRefreshMs = 60 * 1000;
 const refreshPollMs = 15 * 1000;
+const openRefreshMaxMs = 5 * 60 * 1000;
 const maxAvailabilityAgeMs = 6 * 60 * 60 * 1000;
 const productionOrigin = "https://tennis-783m.onrender.com";
 const availabilityCacheApiUrl =
@@ -533,8 +534,8 @@ async function fetchGithubAvailabilityData(ts) {
   return assertUsableAvailabilityData(decodeBase64Json(payload.content));
 }
 
-async function fetchRenderCacheData(ts) {
-  const path = `/api/cache?ts=${ts}`;
+async function fetchRenderCacheData(ts, triggerLiveRefresh = false) {
+  const path = `/api/cache?ts=${ts}${triggerLiveRefresh ? "&refresh=1" : ""}`;
   const isRenderBacked =
     location.hostname === "tennis-783m.onrender.com" ||
     location.hostname === "localhost" ||
@@ -563,7 +564,7 @@ async function fetchAvailabilityData(refresh, followUp) {
   let lastError;
 
   try {
-    return await fetchRenderCacheData(ts);
+    return await fetchRenderCacheData(ts, refresh && !followUp);
   } catch (error) {
     lastError = error;
   }
@@ -612,6 +613,7 @@ async function loadAvailability({ refresh = false, followUp = false, requestId =
   const currentRequestId = requestId ?? ++availabilityRequestId;
   if (!followUp) {
     window.clearTimeout(availabilityPollTimer);
+    liveSince = refresh ? Date.now() : null;
   }
   if (!liveAvailability.updatedAt) {
     availabilityStatus.textContent = refresh ? "正在更新..." : "读取中...";
@@ -619,13 +621,25 @@ async function loadAvailability({ refresh = false, followUp = false, requestId =
   refreshButton.disabled = true;
   try {
     liveAvailability = await fetchAvailabilityData(refresh, followUp);
-    availabilityStatus.textContent = formatUpdatedAt(liveAvailability.updatedAt);
-    if (currentRequestId === availabilityRequestId) {
+    const stillRefreshing =
+      Boolean(liveAvailability.refreshing) &&
+      Boolean(liveSince) &&
+      Date.now() - liveSince < openRefreshMaxMs;
+    availabilityStatus.textContent = stillRefreshing
+      ? `${formatUpdatedAt(liveAvailability.updatedAt)} · 更新中`
+      : formatUpdatedAt(liveAvailability.updatedAt);
+    if (currentRequestId === availabilityRequestId && stillRefreshing) {
+      scheduleAvailabilityFollowUp(currentRequestId);
+    } else if (currentRequestId === availabilityRequestId) {
       window.clearTimeout(availabilityPollTimer);
     }
   } catch {
-    liveAvailability = { updatedAt: null, tbc: {}, ubc: {} };
-    availabilityStatus.textContent = "实时更新失败";
+    if (!liveAvailability.updatedAt) {
+      liveAvailability = { updatedAt: null, tbc: {}, ubc: {} };
+      availabilityStatus.textContent = "更新失败";
+    } else {
+      availabilityStatus.textContent = `${formatUpdatedAt(liveAvailability.updatedAt)} · 更新失败`;
+    }
   } finally {
     refreshButton.disabled = false;
   }
@@ -643,6 +657,6 @@ loadAvailability({ refresh: true });
 loadWeather();
 
 window.setInterval(() => {
-  loadAvailability({ refresh: true });
+  loadAvailability();
   loadWeather();
 }, autoRefreshMs);
