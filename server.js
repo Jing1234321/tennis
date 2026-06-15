@@ -337,8 +337,20 @@ async function scrapeTbc(page, dateISO) {
 
 async function scrapeUbc(page, dateISO) {
   await page.goto(ubcCourtUrl("1", dateISO), { waitUntil: "commit", timeout: 30000 });
-  await page.waitForSelector("#scheduler", { timeout: 30000 });
+  await page.waitForSelector("#scheduler", { state: "attached", timeout: 30000 });
   return page.evaluate(() => /Bookable 24hrs in advance/i.test(document.body?.innerText || ""));
+}
+
+async function waitForUbcSchedule(page) {
+  await page.waitForSelector("#scheduler", { state: "attached", timeout: 30000 });
+  await page
+    .waitForFunction(
+      () =>
+        /Bookable 24hrs in advance|Book Now/i.test(document.body?.innerText || "") ||
+        document.querySelectorAll("#scheduler .k-event").length > 0,
+      { timeout: 30000 },
+    )
+    .catch(() => {});
 }
 
 async function scrapeUbcCourt(browser, court, startDateISO, targetDates) {
@@ -346,7 +358,7 @@ async function scrapeUbcCourt(browser, court, startDateISO, targetDates) {
   try {
     await page.setViewportSize({ width: 1600, height: 1100 }).catch(() => {});
     await page.goto(ubcCourtUrl(court, startDateISO), { waitUntil: "commit", timeout: 30000 });
-    await page.waitForSelector("#scheduler", { timeout: 30000 });
+    await waitForUbcSchedule(page);
     await page.waitForTimeout(3000);
     const baseYear = Number(startDateISO.slice(0, 4));
     const slots = await page.evaluate(() => {
