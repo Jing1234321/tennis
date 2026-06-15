@@ -533,6 +533,18 @@ async function fetchGithubAvailabilityData(ts) {
   return assertUsableAvailabilityData(decodeBase64Json(payload.content));
 }
 
+async function fetchRenderCacheData(ts) {
+  const path = `/api/cache?ts=${ts}`;
+  const isRenderBacked =
+    location.hostname === "tennis-783m.onrender.com" ||
+    location.hostname === "localhost" ||
+    location.hostname === "127.0.0.1";
+  const url = location.protocol === "file:" || !isRenderBacked ? `${productionOrigin}${path}` : path;
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error("Render availability cache failed");
+  return assertUsableAvailabilityData(await response.json());
+}
+
 async function fetchServerAvailabilityData(ts) {
   const path = `/api/availability?refresh=1&ts=${ts}`;
   const url = location.protocol === "file:" ? `${productionOrigin}${path}` : path;
@@ -549,6 +561,12 @@ async function fetchAvailabilityData(refresh, followUp) {
       ? [`${availabilityCacheUrl}?ts=${ts}`, `${productionOrigin}${path}`]
       : [...new Set([`${availabilityCacheUrl}?ts=${ts}`, path, `${productionOrigin}${path}`])];
   let lastError;
+
+  try {
+    return await fetchRenderCacheData(ts);
+  } catch (error) {
+    lastError = error;
+  }
 
   try {
     return await fetchGithubAvailabilityData(ts);

@@ -11,8 +11,12 @@ const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 2);
 const refreshTimeoutMs = Number(process.env.REFRESH_TIMEOUT_MS || 240 * 1000);
 const refreshRetryMs = Number(process.env.REFRESH_RETRY_MS || 60 * 1000);
 const backgroundRefreshMs = Number(process.env.BACKGROUND_REFRESH_MS || 5 * 60 * 1000);
+const remoteCacheMs = Number(process.env.REMOTE_CACHE_MS || 60 * 1000);
+const availabilityCacheApiUrl =
+  "https://api.github.com/repos/Jing1234321/tennis/contents/data/availability.json?ref=availability-cache";
 let cachedAvailability = null;
 let cachedAt = 0;
+let remoteCachedAt = 0;
 let inFlightAvailability = null;
 let lastRefreshStartedAt = 0;
 let lastRefreshError = null;
@@ -198,6 +202,29 @@ function emptyAvailability(refreshing = false) {
     tbc: Object.fromEntries(dates.map((date) => [date, []])),
     ubc: Object.fromEntries(dates.map((date) => [date, []])),
   };
+}
+
+async function fetchAvailabilityCache() {
+  if (cachedAvailability && Date.now() - remoteCachedAt < remoteCacheMs) {
+    return { ...cachedAvailability, cached: true, remoteCached: true };
+  }
+
+  const response = await fetch(`${availabilityCacheApiUrl}&ts=${Date.now()}`, {
+    headers: {
+      accept: "application/vnd.github+json",
+      "user-agent": "tennis-availability",
+    },
+  });
+  if (!response.ok) throw new Error(`GitHub availability cache failed: ${response.status}`);
+
+  const payload = await response.json();
+  if (!payload.content) throw new Error("GitHub availability cache response was empty");
+
+  const data = JSON.parse(Buffer.from(String(payload.content).replace(/\n/g, ""), "base64").toString("utf8"));
+  cachedAvailability = data;
+  cachedAt = new Date(data.checkedAt || data.updatedAt || Date.now()).getTime();
+  remoteCachedAt = Date.now();
+  return { ...data, cached: true, remoteCached: true };
 }
 
 function totalSlots(data) {
@@ -579,6 +606,30 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(await data));
     } catch (error) {
+      res.writeHead(500, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/cache") {
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, apiHeaders);
+      res.end();
+      return;
+    }
+
+    try {
+      const data = await fetchAvailabilityCache();
+      res.writeHead(200, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(data));
+    } catch (error) {
+      if (cachedAvailability) {
+        res.writeHead(200, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ ...cachedAvailability, cached: true, stale: true, refreshError: error.message }));
+        return;
+      }
+
       res.writeHead(500, { ...apiHeaders, "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ error: error.message }));
     }
