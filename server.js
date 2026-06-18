@@ -323,62 +323,41 @@ function getChromium() {
   return playwrightModule.chromium;
 }
 
-async function scrapeTbc(page, dateISO) {
+async function scrapeTbc(dateISO) {
   const window = targetWindow(dateISO);
-  await page.goto(tbcUrl(dateISO), { waitUntil: "domcontentloaded", timeout: 20000 });
-  await page.waitForSelector(".booking-sheet", { timeout: 20000 });
-  await page.waitForTimeout(700);
+  const url = `https://clubspark.ca/v0/VenueBooking/TBCHubRichmond/GetVenueSessions?resourceID=&startDate=${dateISO}&endDate=${dateISO}&roleId=&_=${Date.now()}`;
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      referer: tbcUrl(dateISO),
+      "user-agent": "Mozilla/5.0",
+    },
+  });
+  if (!response.ok) throw new Error(`Tennis Hub sessions failed: ${response.status}`);
 
-  return page.evaluate((window) => {
-    function minutes(value) {
-      const [h, m] = value.split(":").map(Number);
-      return h * 60 + m;
-    }
+  const data = await response.json();
+  const slots = [];
+  for (const resource of data.Resources || []) {
+    const court = String(resource.Name || "").match(/Bubble Court\s*(\d+)/i)?.[1];
+    if (!court) continue;
 
-    function time(value) {
-      return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
-    }
+    for (const day of resource.Days || []) {
+      if (String(day.Date || "").slice(0, 10) !== dateISO) continue;
 
-    function duration(el) {
-      const computed = Number((getComputedStyle(el).height || "").replace("px", "")) || 0;
-      const inline = Number((el.getAttribute("style") || "").match(/height:\s*(\d+)px/)?.[1] || 0);
-      const interval = el.querySelector(".resource-interval") || el;
-      const intervalInline = Number((interval.getAttribute("style") || "").match(/height:\s*(\d+)px/)?.[1] || 0);
-      const height = computed || inline || intervalInline || 60;
-      return Math.max(30, Math.round(height / 60) * 30);
-    }
-
-    const slots = [];
-    const resourceLis = Array.from(document.querySelectorAll("li.visible, li.last-visible-slide")).filter((el) =>
-      /Bubble Court\s*\d+/i.test(el.textContent || ""),
-    );
-
-    for (const li of resourceLis) {
-      const court = (li.textContent || "").match(/Bubble Court\s*(\d+)/i)?.[1];
-      if (!court) continue;
-
-      let cursor = 6 * 60;
-      for (const session of Array.from(li.querySelectorAll(".sessions-container > .resource-session"))) {
-        const text = (session.textContent || "").replace(/\s+/g, " ").trim();
-        const explicit = text.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
-
-        if (/Available for Member/i.test(text)) {
-          const start = cursor;
-          const end = cursor + duration(session);
-          if (end > window.start && start < window.end) {
-            slots.push({ court, time: `${time(start)}-${time(end)}`, status: "可以预定" });
-          }
-          cursor = end;
-        } else if (explicit) {
-          cursor = minutes(explicit[2]);
-        } else {
-          cursor += duration(session);
+      for (const session of day.Sessions || []) {
+        const name = String(session.Name || "");
+        const start = Number(session.StartTime);
+        const end = Number(session.EndTime);
+        const isAvailable = Number(session.Category) === 0 && /All court times/i.test(name);
+        if (!isAvailable || !Number.isFinite(start) || !Number.isFinite(end)) continue;
+        if (end > window.start && start < window.end) {
+          slots.push({ court, time: `${toTime(start)}-${toTime(end)}`, status: "可以预定" });
         }
       }
     }
+  }
 
-    return slots;
-  }, window);
+  return slots;
 }
 
 async function scrapeUbc(page, dateISO) {
@@ -566,55 +545,36 @@ function refreshInBackground() {
 }
 
 async function scrapeAvailability() {
-  const chromium = getChromium();
-  const browser = await chromium.launch({ headless: true });
-  const refreshTimeout = setTimeout(() => {
-    console.error("Availability refresh timed out; closing browser.");
-    browser.close().catch(() => {});
-  }, refreshTimeoutMs);
-  refreshTimeout.unref?.();
   const dates = getWeekDays();
   const targetDates = new Set(dates);
   const tbc = {};
   const ubc = {};
 
-  try {
-    for (const date of dates) {
-      tbc[date] = [];
-      ubc[date] = [];
-    }
+  for (const date of dates) {
+    tbc[date] = [];
+    ubc[date] = [];
+  }
 
-    await mapLimit(dates, tbcConcurrency, async (date) => {
-      const slots = await withRetry(async () => {
-        const page = await browser.newPage();
-        try {
-          return await scrapeTbc(page, date);
-        } finally {
-          await page.close();
-        }
-      }, 2, `Tennis Hub ${date}`);
-      tbc[date] = dedupeSlots(slots.map((slot) => ({ ...slot, dateISO: date })));
-    });
+  await mapLimit(dates, tbcConcurrency, async (date) => {
+    const slots = await withRetry(() => scrapeTbc(date), 2, `Tennis Hub ${date}`);
+    tbc[date] = dedupeSlots(slots.map((slot) => ({ ...slot, dateISO: date })));
+  });
 
-    const startDates = [dates[0]].filter(Boolean);
-    const ubcJobs = Object.keys(ubcCourtFacilityIds).flatMap((court) =>
-      startDates.map((startDate) => ({ court, startDate })),
-    );
+  const startDates = [dates[0]].filter(Boolean);
+  const ubcJobs = Object.keys(ubcCourtFacilityIds).flatMap((court) =>
+    startDates.map((startDate) => ({ court, startDate })),
+  );
 
-    const ubcGroups = await mapLimit(ubcJobs, ubcConcurrency, ({ court, startDate }) =>
-      withRetry(() => scrapeUbcCourt(court, startDate, targetDates), 2, `UBC court ${court}`),
-    );
-    for (const slot of ubcGroups.flat()) {
-      ubc[slot.dateISO].push(slot);
-    }
-    for (const date of dates) {
-      ubc[date] = dedupeSlots(ubc[date]);
-      tbc[date] = tbc[date].map(({ dateISO, ...slot }) => slot);
-      ubc[date] = ubc[date].map(({ dateISO, ...slot }) => slot);
-    }
-  } finally {
-    clearTimeout(refreshTimeout);
-    await browser.close().catch(() => {});
+  const ubcGroups = await mapLimit(ubcJobs, ubcConcurrency, ({ court, startDate }) =>
+    withRetry(() => scrapeUbcCourt(court, startDate, targetDates), 2, `UBC court ${court}`),
+  );
+  for (const slot of ubcGroups.flat()) {
+    ubc[slot.dateISO].push(slot);
+  }
+  for (const date of dates) {
+    ubc[date] = dedupeSlots(ubc[date]);
+    tbc[date] = tbc[date].map(({ dateISO, ...slot }) => slot);
+    ubc[date] = ubc[date].map(({ dateISO, ...slot }) => slot);
   }
 
   const checkedAt = new Date().toISOString();
