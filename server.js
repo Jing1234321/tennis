@@ -11,6 +11,7 @@ const ubcConcurrency = Number(process.env.UBC_CONCURRENCY || 2);
 const refreshTimeoutMs = Number(process.env.REFRESH_TIMEOUT_MS || 8 * 60 * 1000);
 const refreshRetryMs = Number(process.env.REFRESH_RETRY_MS || 60 * 1000);
 const backgroundRefreshMs = Number(process.env.BACKGROUND_REFRESH_MS || 5 * 60 * 1000);
+const openRefreshWaitMs = Number(process.env.OPEN_REFRESH_WAIT_MS || 45 * 1000);
 const remoteCacheMs = Number(process.env.REMOTE_CACHE_MS || 60 * 1000);
 const availabilityCacheApiUrl =
   "https://api.github.com/repos/Jing1234321/tennis/contents/data/availability.json?ref=availability-cache";
@@ -143,6 +144,41 @@ function parseHeaderDate(text, baseYear) {
   return `${baseYear}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+function cookieHeader(response) {
+  const cookies = response.headers.getSetCookie?.() || [];
+  return cookies.map((cookie) => cookie.split(";")[0]).filter(Boolean).join("; ");
+}
+
+function extractUbcConfig(html) {
+  const token = html.match(/name="__RequestVerificationToken"[^>]+value="([^"]+)"/)?.[1];
+  const serviceId =
+    html.match(/"ID":"([0-9a-f-]{36})","Name":"Facility Rental - Public"/i)?.[1] ||
+    html.match(/"ID":"([0-9a-f-]{36})"[^}]+Facility Rental - Public/i)?.[1];
+  const durationBlock = html.match(/"DurationIDs":\[(.*?)\]/)?.[1] || "";
+  const durationIds = Array.from(durationBlock.matchAll(/"([0-9a-f-]{36})"/gi)).map((match) => match[1]);
+
+  if (!token || !serviceId || durationIds.length === 0) {
+    throw new Error("Could not parse UBC availability parameters");
+  }
+
+  return { token, serviceId, durationIds };
+}
+
+function parseUbcDate(value) {
+  const ticks = String(value || "").match(/Date\((\d+)\)/)?.[1];
+  if (!ticks) return null;
+  return new Date(Number(ticks)).toISOString().slice(0, 10);
+}
+
+function minutesFromUbcTime(value) {
+  const total = Number(value?.TotalMinutes);
+  if (Number.isFinite(total)) return total;
+  const hours = Number(value?.Hours);
+  const minutes = Number(value?.Minutes);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
 async function mapLimit(items, limit, fn) {
   const results = [];
   let index = 0;
@@ -219,7 +255,17 @@ function keepNewestAvailability(next) {
 
 async function fetchAvailabilityCache(triggerRefresh = false) {
   if (triggerRefresh) {
-    refreshInBackground();
+    const refreshTask = refreshInBackground();
+    const refreshed = await Promise.race([
+      refreshTask,
+      new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(null), openRefreshWaitMs);
+        timer.unref?.();
+      }),
+    ]);
+    if (refreshed) {
+      return { ...refreshed, cached: false, remoteCached: false, refreshing: Boolean(inFlightAvailability) };
+    }
   }
 
   if (cachedAvailability && Date.now() - remoteCachedAt < remoteCacheMs) {
@@ -353,68 +399,76 @@ async function waitForUbcSchedule(page) {
     .catch(() => {});
 }
 
-async function scrapeUbcCourt(browser, court, startDateISO, targetDates) {
-  const page = await browser.newPage();
-  try {
-    await page.setViewportSize({ width: 1600, height: 1100 }).catch(() => {});
-    await page.goto(ubcCourtUrl(court, startDateISO), { waitUntil: "commit", timeout: 30000 });
-    await waitForUbcSchedule(page);
-    await page.waitForTimeout(1500);
-    const baseYear = Number(startDateISO.slice(0, 4));
-    const slots = await page.evaluate(() => {
-      function tidy(value) {
-        return String(value || "").replace(/\s+/g, " ").trim();
-      }
+async function scrapeUbcCourt(court, startDateISO, targetDates) {
+  const pageUrl = ubcCourtUrl(court, startDateISO);
+  const pageResponse = await fetch(pageUrl, {
+    headers: {
+      "user-agent": "Mozilla/5.0",
+    },
+  });
+  if (!pageResponse.ok) throw new Error(`UBC court page failed: ${pageResponse.status}`);
 
-      const headers = Array.from(
-        document.querySelectorAll(".k-scheduler-header th, .k-scheduler-header td, th.k-scheduler-datecolumn, .k-scheduler-datecolumn"),
-      )
-        .map((el) => {
-          const rect = el.getBoundingClientRect();
-          return {
-            text: tidy(el.innerText || el.textContent),
-            left: rect.x,
-            right: rect.x + rect.width,
-            center: rect.x + rect.width / 2,
-          };
-        })
-        .filter((header) => /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/i.test(header.text));
+  const html = await pageResponse.text();
+  const cookies = cookieHeader(pageResponse);
+  const { token, serviceId, durationIds } = extractUbcConfig(html);
+  const body = new URLSearchParams({
+    facilityId: ubcCourtFacilityIds[court],
+    date: `${startDateISO}T00:00:00.000Z`,
+    daysCount: "7",
+    duration: "60",
+    serviceId,
+    __RequestVerificationToken: token,
+  });
+  for (const id of durationIds) {
+    body.append("durationIds[]", id);
+  }
 
-      return Array.from(document.querySelectorAll("#scheduler .k-event"))
-        .map((event) => {
-          const text = tidy(event.innerText || event.textContent);
-          if (!/(Bookable 24hrs in advance|Book Now)/i.test(text)) return null;
-          const rect = event.getBoundingClientRect();
-          const center = rect.x + rect.width / 2;
-          const header =
-            headers.find((item) => center >= item.left && center <= item.right) ||
-            headers.reduce((best, item) => {
-              if (!best) return item;
-              return Math.abs(item.center - center) < Math.abs(best.center - center) ? item : best;
-            }, null);
-          const time = event.querySelector("[title]")?.getAttribute("title") || "";
-          return header && time ? { header: header.text, time } : null;
-        })
-        .filter(Boolean);
-    });
+  const availabilityResponse = await fetch(
+    "https://ubc.perfectmind.com/24063/Clients/BookMe4LandingPages/FacilityAvailability",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "x-requested-with": "XMLHttpRequest",
+        "user-agent": "Mozilla/5.0",
+        referer: pageUrl,
+        cookie: cookies,
+      },
+      body,
+    },
+  );
+  if (!availabilityResponse.ok) throw new Error(`UBC availability failed: ${availabilityResponse.status}`);
 
-    return slots
-      .map((slot) => {
-        const dateISO = parseHeaderDate(slot.header, baseYear);
-        const time = normalizeTimeRange(slot.time);
-        if (!dateISO || !time || !targetDates.has(dateISO) || !inTargetWindow(dateISO, slot.time)) return null;
-        return {
+  const payload = await availabilityResponse.json();
+  const slots = [];
+  for (const day of payload.availabilities || []) {
+    const dateISO = parseUbcDate(day.Date);
+    if (!dateISO || !targetDates.has(dateISO)) continue;
+
+    for (const group of day.BookingGroups || []) {
+      for (const spot of group.AvailableSpots || []) {
+        const title = String(spot.Title || "");
+        if (title && !/(Bookable 24hrs in advance|Book Now|Reserve)/i.test(title)) continue;
+
+        const start = minutesFromUbcTime(spot.Time);
+        const duration = minutesFromUbcTime(spot.Duration);
+        if (start === null || duration === null) continue;
+
+        const time = `${toTime(start)}-${toTime(start + duration)}`;
+        if (!inTargetWindow(dateISO, time)) continue;
+
+        slots.push({
           dateISO,
           court,
           time,
           status: "可以预定",
           href: ubcCourtUrl(court, dateISO),
-        };
-      })
-      .filter(Boolean);
-  } finally {
-    await page.close();
+        });
+      }
+    }
   }
+
+  return slots;
 }
 
 function dedupeSlots(slots) {
@@ -548,7 +602,7 @@ async function scrapeAvailability() {
     );
 
     const ubcGroups = await mapLimit(ubcJobs, ubcConcurrency, ({ court, startDate }) =>
-      withRetry(() => scrapeUbcCourt(browser, court, startDate, targetDates), 2, `UBC court ${court}`),
+      withRetry(() => scrapeUbcCourt(court, startDate, targetDates), 2, `UBC court ${court}`),
     );
     for (const slot of ubcGroups.flat()) {
       ubc[slot.dateISO].push(slot);
@@ -614,6 +668,7 @@ const server = http.createServer(async (req, res) => {
         refreshAgeMs: inFlightAvailability ? Date.now() - lastRefreshStartedAt : 0,
         lastRefreshError,
         backgroundRefreshMs,
+        openRefreshWaitMs,
         refreshTimeoutMs,
         refreshRetryMs,
       }),
