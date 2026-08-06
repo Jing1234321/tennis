@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-08-05T23:31:13.501Z",
-  "checkedAt": "2026-08-05T23:31:13.501Z",
+  "updatedAt": "2026-08-06T00:52:41.145Z",
+  "checkedAt": "2026-08-06T00:52:41.145Z",
   "source": "live-public-pages",
   "tbc": {
     "2026-08-05": [
@@ -26,7 +26,12 @@
       },
       {
         "court": "3",
-        "time": "20:00-23:00",
+        "time": "20:00-20:30",
+        "status": "可以预定"
+      },
+      {
+        "court": "3",
+        "time": "22:00-23:00",
         "status": "可以预定"
       },
       {
@@ -206,12 +211,6 @@
   "ubc": {
     "2026-08-05": [],
     "2026-08-06": [
-      {
-        "court": "1",
-        "time": "19:00-20:00",
-        "status": "可以预定",
-        "href": "https://ubc.perfectmind.com/24063/Clients/BookMe4LandingPages/Facility?facilityId=c0668c1c-1fd6-4432-a20e-4c50aaad5baa&widgetId=c7c36ee3-2494-4de2-b2cb-d50a86487656&calendarId=e65c1527-c4f8-4316-b6d6-3b174041f00e&arrivalDate=2026-08-06T19%3A30%3A00.000Z&landingPageBackUrl=https%3A%2F%2Fubc.perfectmind.com%2F24063%2FClients%2FBookMe4FacilityList%2FList%3FwidgetId%3Dc7c36ee3-2494-4de2-b2cb-d50a86487656%26calendarId%3De65c1527-c4f8-4316-b6d6-3b174041f00e"
-      },
       {
         "court": "2",
         "time": "19:00-20:00",
