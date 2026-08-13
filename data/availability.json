@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-08-13T00:02:18.582Z",
-  "checkedAt": "2026-08-13T00:02:18.582Z",
+  "updatedAt": "2026-08-13T02:26:57.363Z",
+  "checkedAt": "2026-08-13T02:26:57.363Z",
   "source": "live-public-pages",
   "tbc": {
     "2026-08-12": [
       {
         "court": "1",
-        "time": "20:00-23:00",
+        "time": "22:00-23:00",
         "status": "可以预定"
       },
       {
@@ -33,7 +33,12 @@
     "2026-08-13": [
       {
         "court": "1",
-        "time": "20:00-23:00",
+        "time": "20:00-20:30",
+        "status": "可以预定"
+      },
+      {
+        "court": "1",
+        "time": "21:30-23:00",
         "status": "可以预定"
       },
       {
@@ -197,22 +202,10 @@
     "2026-08-12": [],
     "2026-08-13": [
       {
-        "court": "1",
-        "time": "19:00-20:00",
-        "status": "可以预定",
-        "href": "https://ubc.perfectmind.com/24063/Clients/BookMe4LandingPages/Facility?facilityId=c0668c1c-1fd6-4432-a20e-4c50aaad5baa&widgetId=c7c36ee3-2494-4de2-b2cb-d50a86487656&calendarId=e65c1527-c4f8-4316-b6d6-3b174041f00e&arrivalDate=2026-08-13T19%3A30%3A00.000Z&landingPageBackUrl=https%3A%2F%2Fubc.perfectmind.com%2F24063%2FClients%2FBookMe4FacilityList%2FList%3FwidgetId%3Dc7c36ee3-2494-4de2-b2cb-d50a86487656%26calendarId%3De65c1527-c4f8-4316-b6d6-3b174041f00e"
-      },
-      {
         "court": "2",
         "time": "19:00-20:00",
         "status": "可以预定",
         "href": "https://ubc.perfectmind.com/24063/Clients/BookMe4LandingPages/Facility?facilityId=e2d99dda-cdc4-4af4-8df6-6c8061ffd56f&widgetId=c7c36ee3-2494-4de2-b2cb-d50a86487656&calendarId=e65c1527-c4f8-4316-b6d6-3b174041f00e&arrivalDate=2026-08-13T19%3A30%3A00.000Z&landingPageBackUrl=https%3A%2F%2Fubc.perfectmind.com%2F24063%2FClients%2FBookMe4FacilityList%2FList%3FwidgetId%3Dc7c36ee3-2494-4de2-b2cb-d50a86487656%26calendarId%3De65c1527-c4f8-4316-b6d6-3b174041f00e"
-      },
-      {
-        "court": "3",
-        "time": "19:00-20:00",
-        "status": "可以预定",
-        "href": "https://ubc.perfectmind.com/24063/Clients/BookMe4LandingPages/Facility?facilityId=c117a102-0ba0-4aa8-b8cf-eb8a1480be55&widgetId=c7c36ee3-2494-4de2-b2cb-d50a86487656&calendarId=e65c1527-c4f8-4316-b6d6-3b174041f00e&arrivalDate=2026-08-13T19%3A30%3A00.000Z&landingPageBackUrl=https%3A%2F%2Fubc.perfectmind.com%2F24063%2FClients%2FBookMe4FacilityList%2FList%3FwidgetId%3Dc7c36ee3-2494-4de2-b2cb-d50a86487656%26calendarId%3De65c1527-c4f8-4316-b6d6-3b174041f00e"
       },
       {
         "court": "5",
@@ -231,18 +224,6 @@
         "time": "19:00-20:00",
         "status": "可以预定",
         "href": "https://ubc.perfectmind.com/24063/Clients/BookMe4LandingPages/Facility?facilityId=5dac0879-1fbb-4dfe-ac67-5dcaa925d2f5&widgetId=c7c36ee3-2494-4de2-b2cb-d50a86487656&calendarId=e65c1527-c4f8-4316-b6d6-3b174041f00e&arrivalDate=2026-08-13T19%3A30%3A00.000Z&landingPageBackUrl=https%3A%2F%2Fubc.perfectmind.com%2F24063%2FClients%2FBookMe4FacilityList%2FList%3FwidgetId%3Dc7c36ee3-2494-4de2-b2cb-d50a86487656%26calendarId%3De65c1527-c4f8-4316-b6d6-3b174041f00e"
-      },
-      {
-        "court": "8",
-        "time": "19:00-20:00",
-        "status": "可以预定",
-        "href": "https://ubc.perfectmind.com/24063/Clients/BookMe4LandingPages/Facility?facilityId=ccbf3aa0-f263-44eb-b394-a603115f587a&widgetId=c7c36ee3-2494-4de2-b2cb-d50a86487656&calendarId=e65c1527-c4f8-4316-b6d6-3b174041f00e&arrivalDate=2026-08-13T19%3A30%3A00.000Z&landingPageBackUrl=https%3A%2F%2Fubc.perfectmind.com%2F24063%2FClients%2FBookMe4FacilityList%2FList%3FwidgetId%3Dc7c36ee3-2494-4de2-b2cb-d50a86487656%26calendarId%3De65c1527-c4f8-4316-b6d6-3b174041f00e"
-      },
-      {
-        "court": "9",
-        "time": "19:00-20:00",
-        "status": "可以预定",
-        "href": "https://ubc.perfectmind.com/24063/Clients/BookMe4LandingPages/Facility?facilityId=9f475d76-dbc1-463e-9097-210f31681e2f&widgetId=c7c36ee3-2494-4de2-b2cb-d50a86487656&calendarId=e65c1527-c4f8-4316-b6d6-3b174041f00e&arrivalDate=2026-08-13T19%3A30%3A00.000Z&landingPageBackUrl=https%3A%2F%2Fubc.perfectmind.com%2F24063%2FClients%2FBookMe4FacilityList%2FList%3FwidgetId%3Dc7c36ee3-2494-4de2-b2cb-d50a86487656%26calendarId%3De65c1527-c4f8-4316-b6d6-3b174041f00e"
       },
       {
         "court": "10",
